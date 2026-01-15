@@ -14,6 +14,8 @@ from quasar.ast import (
     ConstDecl,
     FnDecl,
     Param,
+    StructDecl,
+    StructField,
     # Statements
     Block,
     ExpressionStmt,
@@ -26,6 +28,7 @@ from quasar.ast import (
     AssignStmt,
     PrintStmt,
     IndexAssignStmt,
+    MemberAssignStmt,
     # Expressions
     BinaryExpr,
     UnaryExpr,
@@ -38,6 +41,9 @@ from quasar.ast import (
     ListLiteral,
     IndexExpr,
     RangeExpr,
+    FieldInit,
+    StructInitExpr,
+    MemberAccessExpr,
     # Types and operators
     BinaryOp,
     UnaryOp,
@@ -74,6 +80,11 @@ class CodeGenerator:
         """
         self._indent_level = 0
         self._lines = []
+        
+        # Add imports if necessary
+        if any(isinstance(d, StructDecl) for d in program.declarations):
+            self._lines.append("from dataclasses import dataclass")
+            self._lines.append("")
         
         for i, decl in enumerate(program.declarations):
             # Add blank line between top-level functions
@@ -114,6 +125,8 @@ class CodeGenerator:
             self._generate_const_decl(decl)
         elif isinstance(decl, FnDecl):
             self._generate_fn_decl(decl)
+        elif isinstance(decl, StructDecl):
+            self._generate_struct_decl(decl)
         elif isinstance(decl, ExpressionStmt):
             self._generate_expression_stmt(decl)
         elif isinstance(decl, IfStmt):
@@ -134,6 +147,8 @@ class CodeGenerator:
             self._generate_assign_stmt(decl)
         elif isinstance(decl, IndexAssignStmt):
             self._generate_index_assign_stmt(decl)
+        elif isinstance(decl, MemberAssignStmt):
+            self._generate_member_assign_stmt(decl)
         elif isinstance(decl, Block):
             self._generate_block(decl)
     
@@ -306,6 +321,10 @@ class CodeGenerator:
             return self._generate_index_expr(expr)
         elif isinstance(expr, RangeExpr):
             return self._generate_range_expr(expr)
+        elif isinstance(expr, StructInitExpr):
+            return self._generate_struct_init_expr(expr)
+        elif isinstance(expr, MemberAccessExpr):
+            return self._generate_member_access_expr(expr)
         else:
             return ""
     
@@ -406,3 +425,61 @@ class CodeGenerator:
             BinaryOp.OR: "or",
         }
         return mapping.get(op, str(op))
+
+    def _generate_struct_decl(self, decl: StructDecl) -> None:
+        """
+        Generate:
+        @dataclass
+        class Name:
+            field: type
+        """
+        self._emit("@dataclass")
+        self._emit(f"class {decl.name}:")
+        
+        self._indent_level += 1
+        
+        if not decl.fields:
+            self._emit("pass")
+        else:
+            for field in decl.fields:
+                type_str = self._type_to_python(field.type_annotation)
+                self._emit(f"{field.name}: {type_str}")
+        
+        self._indent_level -= 1
+
+    def _type_to_python(self, type_ann) -> str:
+        """Convert Quasar type annotation to Python type string."""
+        from quasar.ast.types import ListType, PrimitiveType
+        
+        if isinstance(type_ann, PrimitiveType):
+            return type_ann.name
+            
+        if isinstance(type_ann, ListType):
+            elem = self._type_to_python(type_ann.element_type)
+            return f"list[{elem}]"
+            
+        return "any"
+
+    def _generate_struct_init_expr(self, expr: StructInitExpr) -> str:
+        """
+        Generate struct instantiation.
+        
+        Quasar: Point { x: 1, y: 2 }
+        Python: Point(x=1, y=2)
+        """
+        args = ", ".join(
+            f"{f.name}={self._generate_expression(f.value)}"
+            for f in expr.fields
+        )
+        return f"{expr.struct_name}({args})"
+
+    def _generate_member_access_expr(self, expr: MemberAccessExpr) -> str:
+        """Generate member access: obj.field"""
+        obj = self._generate_expression(expr.object)
+        return f"{obj}.{expr.member}"
+
+    def _generate_member_assign_stmt(self, stmt: MemberAssignStmt) -> None:
+        """Generate member assignment: obj.field = value"""
+        obj = self._generate_expression(stmt.object)
+        value = self._generate_expression(stmt.value)
+        self._emit(f"{obj}.{stmt.member} = {value}")

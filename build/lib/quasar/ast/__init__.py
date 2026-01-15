@@ -90,6 +90,9 @@ from quasar.ast.expressions import (
     ListLiteral,
     IndexExpr,
     RangeExpr,
+    FieldInit,
+    StructInitExpr,
+    MemberAccessExpr,
 )
 
 # Statements
@@ -105,6 +108,7 @@ from quasar.ast.statements import (
     PrintStmt,
     IndexAssignStmt,
     ForStmt,
+    MemberAssignStmt,
 )
 
 # Declarations
@@ -113,6 +117,8 @@ from quasar.ast.declarations import (
     VarDecl,
     ConstDecl,
     FnDecl,
+    StructDecl,
+    StructField,
 )
 
 # Program
@@ -143,6 +149,9 @@ __all__ = [
     "ListLiteral",
     "IndexExpr",
     "RangeExpr",
+    "FieldInit",
+    "StructInitExpr",
+    "MemberAccessExpr",
     # Statements
     "Block",
     "ExpressionStmt",
@@ -155,11 +164,14 @@ __all__ = [
     "PrintStmt",
     "IndexAssignStmt",
     "ForStmt",
+    "MemberAssignStmt",
     # Declarations
     "Param",
     "VarDecl",
     "ConstDecl",
     "FnDecl",
+    "StructDecl",
+    "StructField",
     # Program
     "Program",
 ]

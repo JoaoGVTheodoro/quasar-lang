@@ -245,12 +245,12 @@ class Lexer:
             case " " | "\t" | "\r" | "\n":
                 pass
             
-            # Range operator (..)
+            # Dot or range operator (. or ..)
             case ".":
                 if self._match("."):
                     self._add_token(TokenType.DOTDOT)
                 else:
-                    self._error(f"unexpected character '.'; did you mean '..'?")
+                    self._add_token(TokenType.DOT)
             
             # String literal
             case '"':

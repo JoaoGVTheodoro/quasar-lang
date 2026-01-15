@@ -341,3 +341,33 @@ class ForStmt(Statement):
             f"body={self.body!r}, "
             f"span={self.span!r})"
         )
+
+
+@dataclass
+class MemberAssignStmt(Statement):
+    """
+    Member assignment statement (Phase 8.2): assign to a struct field.
+    
+    Examples:
+        point.x = 10
+        user.name = "Bob"
+    
+    Attributes:
+        object: The expression containing the struct.
+        member: The field name.
+        value: Expression to assign.
+        span: Source location.
+    """
+    object: Expression
+    member: str
+    value: Expression
+    span: Span
+    
+    def __repr__(self) -> str:
+        return (
+            f"MemberAssignStmt("
+            f"object={self.object!r}, "
+            f"member={self.member!r}, "
+            f"value={self.value!r}, "
+            f"span={self.span!r})"
+        )

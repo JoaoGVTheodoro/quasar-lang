@@ -140,3 +140,57 @@ class FnDecl(Declaration):
             f"body={self.body!r}, "
             f"span={self.span!r})"
         )
+
+@dataclass
+class StructField:
+    """
+    Field Definition in a Struct.
+
+    Example:
+        name: str
+
+    Attributes:
+        name: Field name.
+        type_annotation: Field type.
+        span: Source location.
+    """
+    name: str
+    type_annotation: TypeAnnotation
+    span: Span
+
+    def __repr__(self) -> str:
+        return (
+            f"StructField("
+            f"name={self.name!r}, "
+            f"type_annotation={self.type_annotation!r}, "
+            f"span={self.span!r})"
+        )
+
+
+@dataclass
+class StructDecl(Declaration):
+    """
+    Struct Declaration: struct Name { fields }
+
+    Example:
+        struct User {
+            name: str,
+            age: int
+        }
+
+    Attributes:
+        name: Struct name.
+        fields: List of fields.
+        span: Source location.
+    """
+    name: str
+    fields: list[StructField]
+    span: Span
+
+    def __repr__(self) -> str:
+        return (
+            f"StructDecl("
+            f"name={self.name!r}, "
+            f"fields={self.fields!r}, "
+            f"span={self.span!r})"
+        )

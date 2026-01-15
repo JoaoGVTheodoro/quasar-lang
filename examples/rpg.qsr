@@ -1,0 +1,83 @@
+# Quasar RPG Example - Demonstrating Structs
+# A simple RPG system showcasing struct usage
+
+# Define the Player struct
+struct Player {
+    name: str,
+    hp: int,
+    max_hp: int,
+    xp: int
+}
+
+# Define an Enemy struct
+struct Enemy {
+    name: str,
+    damage: int
+}
+
+# Heal function - demonstrates passing structs to functions
+fn heal(p: Player, amount: int) -> int {
+    let new_hp: int = p.hp + amount
+    if new_hp > p.max_hp {
+        p.hp = p.max_hp
+    } else {
+        p.hp = new_hp
+    }
+    return p.hp
+}
+
+# Take damage function
+fn take_damage(p: Player, damage: int) -> int {
+    p.hp = p.hp - damage
+    if p.hp < 0 {
+        p.hp = 0
+    }
+    return p.hp
+}
+
+# Main game flow
+print("=== Quasar RPG Demo ===")
+print("")
+
+# Create hero using input
+print("Enter hero name:")
+let hero_name: str = input()
+
+let hero: Player = Player {
+    name: hero_name,
+    hp: 100,
+    max_hp: 100,
+    xp: 0
+}
+
+print("")
+print("Hero created: {}", hero.name)
+print("HP: {}/{}", hero.hp, hero.max_hp)
+print("XP: {}", hero.xp)
+
+# Create an enemy
+let goblin: Enemy = Enemy { name: "Goblin", damage: 25 }
+
+print("")
+print("A wild {} appears!", goblin.name)
+
+# Simulate battle
+print("The {} attacks for {} damage!", goblin.name, goblin.damage)
+take_damage(hero, goblin.damage)
+print("Hero HP after attack: {}", hero.hp)
+
+# Gain XP for surviving
+hero.xp = hero.xp + 10
+print("Hero gains 10 XP! Total XP: {}", hero.xp)
+
+# Heal up
+print("")
+print("Hero uses a healing potion (+30 HP)")
+heal(hero, 30)
+print("Hero HP after healing: {}/{}", hero.hp, hero.max_hp)
+
+print("")
+print("=== Battle Complete ===")
+print("Final Stats for {}:", hero.name)
+print("  HP: {}/{}", hero.hp, hero.max_hp)
+print("  XP: {}", hero.xp)

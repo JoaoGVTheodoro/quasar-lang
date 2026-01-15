@@ -1,0 +1,69 @@
+# Quasar Geometry Example - Nested Structs
+# Demonstrates struct composition and deep member access
+
+# Basic Point struct
+struct Point {
+    x: int,
+    y: int
+}
+
+# Rectangle with nested Point
+struct Rect {
+    top_left: Point,
+    width: int,
+    height: int
+}
+
+# Calculate area function
+fn area(r: Rect) -> int {
+    return r.width * r.height
+}
+
+# Calculate perimeter
+fn perimeter(r: Rect) -> int {
+    return 2 * (r.width + r.height)
+}
+
+# Main program
+print("=== Geometry Demo ===")
+print("")
+
+# Create a rectangle with nested points
+let origin: Point = Point { x: 0, y: 0 }
+let my_rect: Rect = Rect {
+    top_left: origin,
+    width: 10,
+    height: 5
+}
+
+# Basic access
+print("Rectangle dimensions: {} x {}", my_rect.width, my_rect.height)
+
+# Deep member access
+print("Top-left corner: ({}, {})", my_rect.top_left.x, my_rect.top_left.y)
+
+# Function calls with structs
+print("Area: {}", area(my_rect))
+print("Perimeter: {}", perimeter(my_rect))
+
+# Modify nested field
+print("")
+print("Moving rectangle to (100, 50)...")
+my_rect.top_left.x = 100
+my_rect.top_left.y = 50
+print("New position: ({}, {})", my_rect.top_left.x, my_rect.top_left.y)
+
+# Array of points
+print("")
+print("=== Polygon Demo ===")
+let vertices: [Point] = [
+    Point { x: 0, y: 0 },
+    Point { x: 10, y: 0 },
+    Point { x: 10, y: 10 },
+    Point { x: 0, y: 10 }
+]
+
+print("Square with {} vertices:", len(vertices))
+for i in 0..4 {
+    print("  Vertex {}: ({}, {})", i, vertices[i].x, vertices[i].y)
+}

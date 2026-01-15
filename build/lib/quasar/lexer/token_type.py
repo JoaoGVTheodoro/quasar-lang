@@ -39,6 +39,8 @@ class TokenType(Enum):
     SEP = auto()        # sep (Phase 5.1 - print separator)
     END = auto()        # end (Phase 5.1 - print terminator)
     
+    STRUCT = auto()     # struct
+
     # === Type Keywords (4) ===
     INT = auto()        # int
     FLOAT = auto()      # float
@@ -87,6 +89,7 @@ class TokenType(Enum):
     COLON = auto()      # :
     COMMA = auto()      # ,
     ARROW = auto()      # ->
+    DOT = auto()        # . (Phase 8.2 - member access)
     DOTDOT = auto()     # .. (Phase 6.3 - range operator)
     
     # === Special (1) ===
@@ -100,6 +103,7 @@ class TokenType(Enum):
 # Mapping from keyword strings to token types
 KEYWORDS: dict[str, TokenType] = {
     # Language keywords
+    "struct": TokenType.STRUCT,
     "let": TokenType.LET,
     "const": TokenType.CONST,
     "fn": TokenType.FN,

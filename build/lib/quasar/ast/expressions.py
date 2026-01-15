@@ -336,3 +336,83 @@ class RangeExpr(Expression):
             f"span={self.span!r})"
         )
 
+
+@dataclass
+class FieldInit:
+    """
+    Field initialization in a struct instantiation.
+    
+    Example:
+        x: 10
+    
+    Attributes:
+        name: Field name.
+        value: Value expression.
+        span: Source location.
+    """
+    name: str
+    value: Expression
+    span: Span
+    
+    def __repr__(self) -> str:
+        return (
+            f"FieldInit("
+            f"name={self.name!r}, "
+            f"value={self.value!r}, "
+            f"span={self.span!r})"
+        )
+
+
+@dataclass
+class StructInitExpr(Expression):
+    """
+    Struct instantiation expression (Phase 8.1).
+    
+    Examples:
+        Point { x: 1, y: 2 }
+        User { name: "Alice", age: 30 }
+    
+    Attributes:
+        struct_name: Name of the struct type.
+        fields: List of field initializations.
+        span: Source location.
+    """
+    struct_name: str
+    fields: list[FieldInit]
+    span: Span
+    
+    def __repr__(self) -> str:
+        return (
+            f"StructInitExpr("
+            f"struct_name={self.struct_name!r}, "
+            f"fields={self.fields!r}, "
+            f"span={self.span!r})"
+        )
+
+
+@dataclass
+class MemberAccessExpr(Expression):
+    """
+    Member access expression (Phase 8.2).
+    
+    Examples:
+        point.x
+        user.name
+        rect.top_left.x (chained)
+    
+    Attributes:
+        object: The expression being accessed.
+        member: The field name.
+        span: Source location.
+    """
+    object: Expression
+    member: str
+    span: Span
+    
+    def __repr__(self) -> str:
+        return (
+            f"MemberAccessExpr("
+            f"object={self.object!r}, "
+            f"member={self.member!r}, "
+            f"span={self.span!r})"
+        )

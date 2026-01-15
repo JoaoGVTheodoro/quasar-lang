@@ -17,6 +17,8 @@ from quasar.ast import (
     ConstDecl,
     FnDecl,
     Param,
+    StructDecl,
+    StructField,
     # Statements
     Block,
     ExpressionStmt,
@@ -29,6 +31,7 @@ from quasar.ast import (
     AssignStmt,
     PrintStmt,
     IndexAssignStmt,
+    MemberAssignStmt,
     # Expressions
     BinaryExpr,
     UnaryExpr,
@@ -41,6 +44,9 @@ from quasar.ast import (
     ListLiteral,
     IndexExpr,
     RangeExpr,
+    FieldInit,
+    StructInitExpr,
+    MemberAccessExpr,
     # Types and operators
     TypeAnnotation,
     QuasarType,
@@ -90,6 +96,8 @@ class SemanticAnalyzer:
         self._symbols = SymbolTable()
         self._loop_depth = 0  # Track nesting in while loops
         self._current_function_return_type: Optional[TypeAnnotation] = None
+        # Store struct definitions: name -> list of (field_name, field_type) tuples
+        self._defined_types: dict[str, list[tuple[str, QuasarType]]] = {}
     
     def analyze(self, program: Program) -> Program:
         """
@@ -113,6 +121,8 @@ class SemanticAnalyzer:
             self._analyze_const_decl(decl)
         elif isinstance(decl, FnDecl):
             self._analyze_fn_decl(decl)
+        elif isinstance(decl, StructDecl):
+            self._analyze_struct_decl(decl)
         elif isinstance(decl, ExpressionStmt):
             self._analyze_expression_stmt(decl)
         elif isinstance(decl, IfStmt):
@@ -133,6 +143,8 @@ class SemanticAnalyzer:
             self._analyze_assign_stmt(decl)
         elif isinstance(decl, IndexAssignStmt):
             self._analyze_index_assign_stmt(decl)
+        elif isinstance(decl, MemberAssignStmt):
+            self._analyze_member_assign_stmt(decl)
         elif isinstance(decl, Block):
             self._analyze_block(decl)
     
@@ -600,6 +612,10 @@ class SemanticAnalyzer:
             # Return a marker type - range is iterable of int
             # We use ListType(INT) as a stand-in since ranges are int iterables
             return ListType(INT)
+        elif isinstance(expr, StructInitExpr):
+            return self._get_struct_init_expr_type(expr)
+        elif isinstance(expr, MemberAccessExpr):
+            return self._get_member_access_expr_type(expr)
         else:
             # Should not reach here with valid AST
             raise SemanticError(
@@ -838,11 +854,15 @@ class SemanticAnalyzer:
         
         Built-in functions (len, push) are intercepted here.
         """
-        # Intercept built-in functions (Phase 6.2)
+        # Intercept built-in functions (Phase 6.2, Phase 7.0, Phase 7.1)
         if expr.callee == "len":
             return self._check_builtin_len(expr)
         if expr.callee == "push":
             return self._check_builtin_push(expr)
+        if expr.callee == "input":
+            return self._check_builtin_input(expr)
+        if expr.callee in {"int", "float", "str", "bool"}:
+            return self._check_builtin_cast(expr)
         
         symbol = self._symbols.lookup(expr.callee)
         if symbol is None:
@@ -927,3 +947,297 @@ class SemanticAnalyzer:
             )
         
         return VOID
+    
+    def _check_builtin_input(self, expr: CallExpr) -> QuasarType:
+        """
+        Validate built-in input() function (Phase 7.0).
+        
+        Rules:
+        - Must have 0 or 1 argument
+        - If 1 argument, must be a string (prompt)
+        
+        Returns: STR
+        Errors:
+        - E0600: Too many arguments
+        - E0601: Argument must be string
+        """
+        # Check argument count (max 1)
+        if len(expr.arguments) > 1:
+            raise SemanticError(
+                code="E0600",
+                message=f"input() takes at most 1 argument ({len(expr.arguments)} given)",
+                span=expr.span,
+            )
+        
+        # If there's an argument, it must be a string
+        if len(expr.arguments) == 1:
+            arg_type = self._get_expression_type(expr.arguments[0])
+            if arg_type != STR:
+                raise SemanticError(
+                    code="E0601",
+                    message=f"input() prompt must be str, got '{arg_type}'",
+                    span=expr.arguments[0].span,
+                )
+        
+        return STR
+    
+    def _check_builtin_cast(self, expr: CallExpr) -> QuasarType:
+        """
+        Validate type casting functions (Phase 7.1).
+        
+        Functions: int(), float(), str(), bool()
+        
+        Rules:
+        - Must have exactly 1 argument
+        - Argument can be any primitive type (permissive)
+        
+        Returns: The target type (INT, FLOAT, STR, BOOL)
+        Errors:
+        - E0602: Wrong argument count
+        """
+        # Check argument count (exactly 1)
+        if len(expr.arguments) != 1:
+            raise SemanticError(
+                code="E0602",
+                message=f"{expr.callee}() requires exactly 1 argument ({len(expr.arguments)} given)",
+                span=expr.span,
+            )
+        
+        # Validate the argument exists and is a valid expression
+        self._get_expression_type(expr.arguments[0])
+        
+        # Return the target type based on the function name
+        return {
+            "int": INT,
+            "float": FLOAT,
+            "str": STR,
+            "bool": BOOL,
+        }[expr.callee]
+
+    def _analyze_struct_decl(self, decl: StructDecl) -> None:
+        """
+        Analyze struct declaration.
+        
+        Checks:
+        - E0800: Struct name must be unique
+        - E0801: Fields must be unique
+        - E0802: Field types must be valid
+        """
+        # E0800: Check duplicate struct name
+        if decl.name in self._defined_types:
+            raise SemanticError(
+                code="E0800",
+                message=f"redefinition of struct '{decl.name}'",
+                span=decl.span,
+            )
+        
+        # Check fields and collect field info
+        seen_fields: set[str] = set()
+        field_info: list[tuple[str, QuasarType]] = []
+        
+        for field in decl.fields:
+            # E0801: Duplicate fields
+            if field.name in seen_fields:
+                raise SemanticError(
+                    code="E0801",
+                    message=f"duplicate field '{field.name}' in struct '{decl.name}'",
+                    span=field.span,
+                )
+            seen_fields.add(field.name)
+            
+            # E0802: Validate field type (primitives and lists are valid)
+            self._validate_type_annotation(field.type_annotation, field.span)
+            field_info.append((field.name, field.type_annotation))
+        
+        # Store struct definition with field info
+        self._defined_types[decl.name] = field_info
+
+    def _validate_type_annotation(self, type_ann: QuasarType, span: Span) -> None:
+        """Validate that a type annotation refers to a valid type."""
+        if isinstance(type_ann, PrimitiveType):
+            return  # Primitive types are always valid
+        
+        if isinstance(type_ann, ListType):
+            self._validate_type_annotation(type_ann.element_type, span)
+            return
+        
+        # For now, only primitives and lists are supported
+        # Future phases will add struct types as field types
+
+    def _get_struct_init_expr_type(self, expr: StructInitExpr) -> QuasarType:
+        """
+        Get the type of a struct instantiation expression.
+        
+        Checks:
+        - E0803: Struct must be defined
+        - E0804: All required fields must be present
+        - E0805: No unknown fields
+        - E0806: Field types must match
+        
+        Returns: A placeholder type (the struct name as a PrimitiveType for now)
+        """
+        struct_name = expr.struct_name
+        
+        # E0803: Check struct exists
+        if struct_name not in self._defined_types:
+            raise SemanticError(
+                code="E0803",
+                message=f"struct '{struct_name}' is not defined",
+                span=expr.span,
+            )
+        
+        # Get struct definition
+        struct_fields = self._defined_types[struct_name]
+        expected_fields = {name: ftype for name, ftype in struct_fields}
+        provided_fields = {f.name: f for f in expr.fields}
+        
+        # E0804: Check for missing fields
+        missing = set(expected_fields.keys()) - set(provided_fields.keys())
+        if missing:
+            raise SemanticError(
+                code="E0804",
+                message=f"missing field(s) in struct '{struct_name}': {', '.join(sorted(missing))}",
+                span=expr.span,
+            )
+        
+        # E0805: Check for unknown fields
+        unknown = set(provided_fields.keys()) - set(expected_fields.keys())
+        if unknown:
+            first_unknown = list(unknown)[0]
+            raise SemanticError(
+                code="E0805",
+                message=f"unknown field '{first_unknown}' in struct '{struct_name}'",
+                span=provided_fields[first_unknown].span,
+            )
+        
+        # E0806: Type check each field
+        for field_name, expected_type in expected_fields.items():
+            provided_field = provided_fields[field_name]
+            actual_type = self._get_expression_type(provided_field.value)
+            
+            if not self._types_compatible(expected_type, actual_type):
+                raise SemanticError(
+                    code="E0806",
+                    message=f"field '{field_name}' expects type '{expected_type}', got '{actual_type}'",
+                    span=provided_field.span,
+                )
+        
+        # Return a placeholder type for the struct
+        # For now, we create a PrimitiveType with the struct name
+        # This is a simplification - a proper implementation would use a StructType
+        return PrimitiveType(struct_name)
+
+    def _get_member_access_expr_type(self, expr: MemberAccessExpr) -> QuasarType:
+        """
+        Get the type of a member access expression.
+        
+        Checks:
+        - E0807: Object must be a struct type
+        - E0808: Field must exist
+        
+        Returns: The type of the accessed field
+        """
+        # Get the type of the object being accessed
+        obj_type = self._get_expression_type(expr.object)
+        
+        # E0807: Check object is a struct type
+        # We use PrimitiveType with struct name as placeholder
+        if not isinstance(obj_type, PrimitiveType):
+            raise SemanticError(
+                code="E0807",
+                message=f"cannot access field of non-struct type '{obj_type}'",
+                span=expr.object.span,
+            )
+        
+        struct_name = obj_type.name
+        
+        # Check if it's a built-in primitive type
+        if struct_name in {"int", "float", "bool", "str"}:
+            raise SemanticError(
+                code="E0807",
+                message=f"cannot access field of primitive type '{struct_name}'",
+                span=expr.object.span,
+            )
+        
+        # Check if struct exists in registry
+        if struct_name not in self._defined_types:
+            raise SemanticError(
+                code="E0807",
+                message=f"cannot access field of unknown type '{struct_name}'",
+                span=expr.object.span,
+            )
+        
+        # Get struct definition
+        struct_fields = self._defined_types[struct_name]
+        field_types = {name: ftype for name, ftype in struct_fields}
+        
+        # E0808: Check field exists
+        if expr.member not in field_types:
+            raise SemanticError(
+                code="E0808",
+                message=f"struct '{struct_name}' has no field '{expr.member}'",
+                span=expr.span,
+            )
+        
+        return field_types[expr.member]
+
+    def _analyze_member_assign_stmt(self, stmt: MemberAssignStmt) -> None:
+        """
+        Analyze member assignment statement.
+        
+        Checks:
+        - E0807: Object must be a struct type
+        - E0808: Field must exist
+        - E0809: Value type must match field type
+        """
+        # Get the type of the object being accessed
+        obj_type = self._get_expression_type(stmt.object)
+        
+        # E0807: Check object is a struct type
+        if not isinstance(obj_type, PrimitiveType):
+            raise SemanticError(
+                code="E0807",
+                message=f"cannot access field of non-struct type '{obj_type}'",
+                span=stmt.object.span,
+            )
+        
+        struct_name = obj_type.name
+        
+        # Check if it's a built-in primitive type
+        if struct_name in {"int", "float", "bool", "str"}:
+            raise SemanticError(
+                code="E0807",
+                message=f"cannot access field of primitive type '{struct_name}'",
+                span=stmt.object.span,
+            )
+        
+        # Check if struct exists in registry
+        if struct_name not in self._defined_types:
+            raise SemanticError(
+                code="E0807",
+                message=f"cannot access field of unknown type '{struct_name}'",
+                span=stmt.object.span,
+            )
+        
+        # Get struct definition
+        struct_fields = self._defined_types[struct_name]
+        field_types = {name: ftype for name, ftype in struct_fields}
+        
+        # E0808: Check field exists
+        if stmt.member not in field_types:
+            raise SemanticError(
+                code="E0808",
+                message=f"struct '{struct_name}' has no field '{stmt.member}'",
+                span=stmt.span,
+            )
+        
+        # E0809: Check value type matches field type
+        expected_type = field_types[stmt.member]
+        actual_type = self._get_expression_type(stmt.value)
+        
+        if not self._types_compatible(expected_type, actual_type):
+            raise SemanticError(
+                code="E0809",
+                message=f"cannot assign '{actual_type}' to field '{stmt.member}' of type '{expected_type}'",
+                span=stmt.value.span,
+            )

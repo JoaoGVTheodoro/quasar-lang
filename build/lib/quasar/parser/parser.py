@@ -88,6 +88,9 @@ from quasar.ast.expressions import (
     ListLiteral,
     IndexExpr,
     RangeExpr,
+    FieldInit,
+    StructInitExpr,
+    MemberAccessExpr,
 )
 from quasar.ast.statements import (
     Block,
@@ -101,12 +104,15 @@ from quasar.ast.statements import (
     PrintStmt,
     IndexAssignStmt,
     ForStmt,
+    MemberAssignStmt,
 )
 from quasar.ast.declarations import (
     Param,
     VarDecl,
     ConstDecl,
     FnDecl,
+    StructDecl,
+    StructField,
 )
 from quasar.ast.program import Program
 
@@ -170,6 +176,18 @@ class Parser:
         """Return current token without consuming it."""
         return self._tokens[self._current]
     
+    def _peek_next(self) -> Token:
+        """Return next token without consuming current one (lookahead)."""
+        if self._current + 1 >= len(self._tokens):
+            return self._tokens[-1]  # Return EOF
+        return self._tokens[self._current + 1]
+
+    def _peek_n(self, n: int) -> Token:
+        """Return token n positions ahead without consuming (extended lookahead)."""
+        if self._current + n >= len(self._tokens):
+            return self._tokens[-1]  # Return EOF
+        return self._tokens[self._current + n]
+    
     def _previous(self) -> Token:
         """Return the most recently consumed token."""
         return self._tokens[self._current - 1]
@@ -184,11 +202,11 @@ class Parser:
             self._current += 1
         return self._previous()
     
-    def _check(self, token_type: TokenType) -> bool:
-        """Check if current token is of given type."""
+    def _check(self, *types: TokenType) -> bool:
+        """Check if current token is of any given type."""
         if self._is_at_end():
             return False
-        return self._peek().type == token_type
+        return self._peek().type in types
     
     def _match(self, *types: TokenType) -> bool:
         """
@@ -255,6 +273,8 @@ class Parser:
             return self._const_decl()
         if self._check(TokenType.FN):
             return self._fn_decl()
+        if self._check(TokenType.STRUCT):
+            return self._struct_decl()
         return self._statement()
     
     def _var_decl(self) -> VarDecl:
@@ -380,9 +400,10 @@ class Parser:
         """
         Parse a type annotation.
         
-        type → primitive_type | list_type
+        type → primitive_type | list_type | struct_type
         primitive_type → "int" | "float" | "bool" | "str"
         list_type → "[" type "]"
+        struct_type → IDENTIFIER
         """
         # List type: [T]
         if self._match(TokenType.LBRACKET):
@@ -400,7 +421,14 @@ class Parser:
         if self._match(TokenType.STR):
             return STR
         
-        raise self._error("expected type name (int, float, bool, str, or [type])")
+        # Custom struct type (identifier)
+        if self._match(TokenType.IDENTIFIER):
+            token = self._previous()
+            # Use PrimitiveType as a stand-in for struct types
+            # The semantic analyzer will validate this is a real struct
+            return PrimitiveType(token.lexeme)
+        
+        raise self._error("expected type name")
     
     # =========================================================================
     # Statements
@@ -464,6 +492,14 @@ class Parser:
                 # Index assignment (Phase 6.1)
                 return IndexAssignStmt(
                     target=expr,
+                    value=value,
+                    span=self._merge_spans(expr.span, value.span),
+                )
+            elif isinstance(expr, MemberAccessExpr):
+                # Member assignment (Phase 8.2)
+                return MemberAssignStmt(
+                    object=expr.object,
+                    member=expr.member,
                     value=value,
                     span=self._merge_spans(expr.span, value.span),
                 )
@@ -915,6 +951,15 @@ class Parser:
                     index=index,
                     span=self._merge_spans(expr.span, end.span),
                 )
+            elif self._match(TokenType.DOT):
+                # Member access (Phase 8.2)
+                member_token = self._consume(TokenType.IDENTIFIER, "expected field name after '.'")
+                
+                expr = MemberAccessExpr(
+                    object=expr,
+                    member=member_token.lexeme,
+                    span=self._merge_spans(expr.span, member_token.span),
+                )
             else:
                 break
         
@@ -983,13 +1028,35 @@ class Parser:
                 span=token.span,
             )
         
-        # Identifier
+        # Identifier or struct init
         if self._match(TokenType.IDENTIFIER):
             token = self._previous()
+            # Check if this is a struct instantiation: Identifier { field: expr }
+            # Must distinguish from Identifier followed by a block (e.g., in for..in expr { body })
+            # Lookahead: struct init requires pattern: Identifier { Identifier : ...
+            # Empty structs like `Identifier { }` are ambiguous with blocks - require at least one field
+            if self._check(TokenType.LBRACE):
+                # Look ahead to disambiguate - only match: { IDENT :
+                next_token = self._peek_next()  # Token after {
+                if next_token.type == TokenType.IDENTIFIER:
+                    # Check if pattern is: { IDENT :
+                    if self._peek_n(2).type == TokenType.COLON:
+                        return self._struct_init(token)
             return Identifier(
                 name=token.lexeme,
                 span=token.span,
             )
+        
+        # Type keywords as function calls (Phase 7.1)
+        # Allow int(), float(), str(), bool() as casting functions
+        if self._check(TokenType.INT, TokenType.FLOAT, TokenType.STR, TokenType.BOOL):
+            if self._peek_next().type == TokenType.LPAREN:
+                # Consume the type keyword as an identifier
+                token = self._advance()
+                return Identifier(
+                    name=token.lexeme,
+                    span=token.span,
+                )
         
         # Grouped expression
         if self._match(TokenType.LPAREN):
@@ -1037,4 +1104,134 @@ class Parser:
         return ListLiteral(
             elements=elements,
             span=self._merge_spans(start.span, end.span),
+        )
+
+    def _struct_decl(self) -> StructDecl:
+        """
+        Parse a struct declaration.
+        
+        struct_decl → "struct" IDENT "{" (struct_fields)? "}"
+        """
+        start = self._advance()  # consume 'struct'
+        
+        name_token = self._consume(TokenType.IDENTIFIER, "expected struct name after 'struct'")
+        name = name_token.lexeme
+        
+        self._consume(TokenType.LBRACE, "expected '{' after struct name")
+        
+        fields: list[StructField] = []
+        if not self._check(TokenType.RBRACE):
+            fields = self._struct_fields()
+        
+        end = self._consume(TokenType.RBRACE, "expected '}' after struct fields")
+        
+        return StructDecl(
+            name=name,
+            fields=fields,
+            span=self._merge_spans(start.span, end.span),
+        )
+    
+    def _struct_fields(self) -> list[StructField]:
+        """
+        Parse struct fields.
+        
+        (struct_field ("," struct_field)* ","?)?
+        struct_field → IDENTIFIER ":" type
+        """
+        fields: list[StructField] = []
+        
+        # Parse first field
+        fields.append(self._struct_field())
+        
+        # Parse subsequent fields
+        while self._match(TokenType.COMMA):
+            # Allow trailing comma
+            if self._check(TokenType.RBRACE):
+                break
+            fields.append(self._struct_field())
+        
+        return fields
+    
+    def _struct_field(self) -> StructField:
+        """
+        Parse a single struct field.
+        
+        IDENTIFIER ":" type
+        """
+        name_token = self._consume(TokenType.IDENTIFIER, "expected field name")
+        name = name_token.lexeme
+        start = name_token.span
+        
+        self._consume(TokenType.COLON, "expected ':' after field name")
+        
+        type_ann = self._type_annotation()
+        type_span = self._previous().span
+        
+        return StructField(
+            name=name,
+            type_annotation=type_ann,
+            span=self._merge_spans(start, type_span),
+        )
+
+    def _struct_init(self, name_token: Token) -> StructInitExpr:
+        """
+        Parse struct instantiation expression.
+        
+        struct_init → IDENTIFIER "{" (field_init ("," field_init)* ","?)? "}"
+        field_init → IDENTIFIER ":" expression
+        
+        Called after IDENTIFIER has been consumed and we've detected "{".
+        """
+        self._consume(TokenType.LBRACE, "expected '{' after struct name")
+        
+        fields: list[FieldInit] = []
+        if not self._check(TokenType.RBRACE):
+            fields = self._struct_init_fields()
+        
+        end = self._consume(TokenType.RBRACE, "expected '}' after struct fields")
+        
+        return StructInitExpr(
+            struct_name=name_token.lexeme,
+            fields=fields,
+            span=self._merge_spans(name_token.span, end.span),
+        )
+
+    def _struct_init_fields(self) -> list[FieldInit]:
+        """
+        Parse field initializations.
+        
+        (field_init ("," field_init)* ","?)?
+        """
+        fields: list[FieldInit] = []
+        
+        # Parse first field
+        fields.append(self._field_init())
+        
+        # Parse subsequent fields
+        while self._match(TokenType.COMMA):
+            # Allow trailing comma
+            if self._check(TokenType.RBRACE):
+                break
+            fields.append(self._field_init())
+        
+        return fields
+
+    def _field_init(self) -> FieldInit:
+        """
+        Parse a single field initialization.
+        
+        IDENTIFIER ":" expression
+        """
+        name_token = self._consume(TokenType.IDENTIFIER, "expected field name")
+        name = name_token.lexeme
+        start = name_token.span
+        
+        self._consume(TokenType.COLON, "expected ':' after field name")
+        
+        value = self._expression()
+        
+        return FieldInit(
+            name=name,
+            value=value,
+            span=self._merge_spans(start, value.span),
         )
