@@ -1,12 +1,9 @@
 """
-Quasar command-line interface.
+Quasar CLI module.
+
+Provides command-line interface for the Quasar compiler.
 """
 
+from quasar.cli.main import main
 
-def main() -> None:
-    """
-    Entry point for the Quasar compiler CLI.
-    
-    TODO: Implement CLI argument parsing and compiler invocation.
-    """
-    raise NotImplementedError("CLI not yet implemented")
+__all__ = ["main"]
