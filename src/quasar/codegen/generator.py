@@ -203,9 +203,24 @@ class CodeGenerator:
         self._emit("continue")
     
     def _generate_print_stmt(self, stmt: PrintStmt) -> None:
-        """Generate: print(expr) (Phase 5)"""
-        expr = self._generate_expression(stmt.expression)
-        self._emit(f"print({expr})")
+        """
+        Generate: print(args, sep=..., end=...) (Phase 5 + 5.1)
+        """
+        # Generate all positional arguments
+        args = [self._generate_expression(arg) for arg in stmt.arguments]
+        parts = ", ".join(args)
+        
+        # Add sep if present
+        if stmt.sep is not None:
+            sep_val = self._generate_expression(stmt.sep)
+            parts += f", sep={sep_val}"
+        
+        # Add end if present
+        if stmt.end is not None:
+            end_val = self._generate_expression(stmt.end)
+            parts += f", end={end_val}"
+        
+        self._emit(f"print({parts})")
     
     def _generate_assign_stmt(self, stmt: AssignStmt) -> None:
         """Generate: target = expr"""

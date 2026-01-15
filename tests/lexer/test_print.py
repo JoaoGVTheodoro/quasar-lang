@@ -1,5 +1,5 @@
 """
-Tests for print keyword tokenization (Phase 5).
+Tests for print keyword tokenization (Phase 5 + 5.1).
 """
 
 import pytest
@@ -53,3 +53,80 @@ class TestPrintKeyword:
         assert tokens[1].lexeme == "Print"
         assert tokens[2].type == TokenType.IDENTIFIER
         assert tokens[2].lexeme == "pRiNt"
+
+
+class TestPrintSepEnd:
+    """Tests for sep and end keywords (Phase 5.1)."""
+    
+    def test_sep_keyword_recognized(self):
+        """sep should be tokenized as SEP keyword."""
+        lexer = Lexer("sep")
+        tokens = lexer.tokenize()
+        
+        assert len(tokens) == 2  # SEP + EOF
+        assert tokens[0].type == TokenType.SEP
+        assert tokens[0].lexeme == "sep"
+    
+    def test_end_keyword_recognized(self):
+        """end should be tokenized as END keyword."""
+        lexer = Lexer("end")
+        tokens = lexer.tokenize()
+        
+        assert len(tokens) == 2  # END + EOF
+        assert tokens[0].type == TokenType.END
+        assert tokens[0].lexeme == "end"
+    
+    def test_sep_in_print_context(self):
+        """print(a, sep=',') should tokenize correctly."""
+        lexer = Lexer('print(a, sep=",")')
+        tokens = lexer.tokenize()
+        
+        # PRINT ( IDENTIFIER , SEP = STRING_LITERAL ) EOF
+        assert len(tokens) == 9
+        assert tokens[0].type == TokenType.PRINT
+        assert tokens[1].type == TokenType.LPAREN
+        assert tokens[2].type == TokenType.IDENTIFIER
+        assert tokens[2].lexeme == "a"
+        assert tokens[3].type == TokenType.COMMA
+        assert tokens[4].type == TokenType.SEP
+        assert tokens[5].type == TokenType.EQUAL
+        assert tokens[6].type == TokenType.STRING_LITERAL
+        assert tokens[7].type == TokenType.RPAREN
+        assert tokens[8].type == TokenType.EOF
+    
+    def test_end_in_print_context(self):
+        """print(a, end='') should tokenize correctly."""
+        lexer = Lexer('print(a, end="")')
+        tokens = lexer.tokenize()
+        
+        # PRINT ( IDENTIFIER , END = STRING_LITERAL ) EOF
+        assert len(tokens) == 9
+        assert tokens[0].type == TokenType.PRINT
+        assert tokens[4].type == TokenType.END
+        assert tokens[5].type == TokenType.EQUAL
+        assert tokens[6].type == TokenType.STRING_LITERAL
+    
+    def test_sep_and_end_together(self):
+        """print(a, b, sep=',', end='!') should tokenize all keywords."""
+        lexer = Lexer("print(a, b, sep=\",\", end=\"!\")")
+        tokens = lexer.tokenize()
+        
+        # PRINT ( a , b , sep = "," , end = "!" ) EOF
+        assert len(tokens) == 15
+        assert tokens[0].type == TokenType.PRINT
+        assert tokens[6].type == TokenType.SEP
+        assert tokens[10].type == TokenType.END
+    
+    def test_sep_end_case_sensitive(self):
+        """SEP, End, END should be identifiers (case-sensitive)."""
+        lexer = Lexer("SEP End END Sep")
+        tokens = lexer.tokenize()
+        
+        assert tokens[0].type == TokenType.IDENTIFIER
+        assert tokens[0].lexeme == "SEP"
+        assert tokens[1].type == TokenType.IDENTIFIER
+        assert tokens[1].lexeme == "End"
+        assert tokens[2].type == TokenType.IDENTIFIER
+        assert tokens[2].lexeme == "END"
+        assert tokens[3].type == TokenType.IDENTIFIER
+        assert tokens[3].lexeme == "Sep"

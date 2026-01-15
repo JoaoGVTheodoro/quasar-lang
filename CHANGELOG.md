@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] — 2025-01-15
+
+### ✨ Added
+
+- **Extended `print()` builtin** — Multiple arguments with sep/end parameters
+  - Multiple positional arguments: `print(a, b, c)`
+  - `sep` parameter: `print(a, b, sep=",")`
+  - `end` parameter: `print(a, end="")`
+  - Combined usage: `print(a, b, sep="-", end="!")`
+  - Variable expressions for sep/end
+  - 100% backward compatible with v1.1.0
+
+- **New Lexer Tokens** — `SEP` and `END` keywords
+
+- **Semantic Validation**
+  - E0402: `sep` parameter must be type `str`
+  - E0403: `end` parameter must be type `str`
+
+### 📊 Test Summary
+
+| Component | v1.1.0  | Added   | v1.2.0  |
+| --------- | ------- | ------- | ------- |
+| Lexer     | 97      | +6      | 103     |
+| Parser    | 93      | +12     | 105     |
+| Semantic  | 55      | +19     | 74      |
+| CodeGen   | 80      | +15     | 95      |
+| CLI       | 21      | —       | 21      |
+| E2E       | 20      | +28     | 48      |
+| **Total** | **366** | **+80** | **446** |
+
+### 📁 New Files
+
+- `tests/e2e/test_integration_print_ext.py` — Extended print E2E tests
+- `docs/PHASE5_1_DESIGN.md` — Phase 5.1 design document (FROZEN)
+
+### 🔧 Modified Files
+
+- `src/quasar/lexer/token_type.py` — Added `SEP`, `END` tokens
+- `src/quasar/ast/statements.py` — Updated `PrintStmt` dataclass
+- `src/quasar/parser/parser.py` — Rewrote `_print_stmt()`
+- `src/quasar/semantic/analyzer.py` — Added sep/end validation
+- `src/quasar/codegen/generator.py` — Multi-arg generation
+
+---
+
 ## [1.1.0] — 2025-01-15
 
 ### ✨ Added
@@ -26,15 +71,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 📊 Test Summary
 
-| Component | v1.0.0 | Added | v1.1.0 |
-| --------- | ------ | ----- | ------ |
-| Lexer     | 93     | +4    | 97     |
-| Parser    | 87     | +6    | 93     |
-| Semantic  | 47     | +8    | 55     |
-| CodeGen   | 68     | +12   | 80     |
-| CLI       | 21     | —     | 21     |
-| E2E       | 0      | +20   | 20     |
-| **Total** | **316**| **+50**| **366**|
+| Component | v1.0.0  | Added   | v1.1.0  |
+| --------- | ------- | ------- | ------- |
+| Lexer     | 93      | +4      | 97      |
+| Parser    | 87      | +6      | 93      |
+| Semantic  | 47      | +8      | 55      |
+| CodeGen   | 68      | +12     | 80      |
+| CLI       | 21      | —       | 21      |
+| E2E       | 0       | +20     | 20      |
+| **Total** | **316** | **+50** | **366** |
 
 ### 📁 New Files
 

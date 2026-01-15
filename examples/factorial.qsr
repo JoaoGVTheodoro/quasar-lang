@@ -6,4 +6,4 @@ fn factorial(n: int) -> int {
 }
 
 let result: int = factorial(5)
-print(result)
+print("Factorial =", result)

@@ -236,28 +236,38 @@ class AssignStmt(Statement):
 @dataclass
 class PrintStmt(Statement):
     """
-    Print statement: output a value to console (Phase 5).
+    Print statement: output values to console (Phase 5 + 5.1).
     
     Examples:
         print(42)
         print("hello")
         print(x + y)
+        print(a, b, c)                    # Multiple arguments
+        print(a, b, sep=", ")             # Custom separator
+        print(a, end="")                  # No newline
+        print(a, b, sep="-", end="!\n")   # Both sep and end
     
     Note: print is a statement, not an expression. It cannot be
     used as a value (e.g., let x = print(1) is invalid).
     
     Attributes:
-        expression: The expression to print.
+        arguments: List of expressions to print (at least 1).
+        sep: Optional separator expression (must be str).
+        end: Optional end expression (must be str).
         span: Source location.
     """
     
-    expression: Expression
+    arguments: list[Expression]
+    sep: Expression | None
+    end: Expression | None
     span: Span
     
     def __repr__(self) -> str:
         """Deterministic representation for snapshots."""
         return (
             f"PrintStmt("
-            f"expression={self.expression!r}, "
+            f"arguments={self.arguments!r}, "
+            f"sep={self.sep!r}, "
+            f"end={self.end!r}, "
             f"span={self.span!r})"
         )

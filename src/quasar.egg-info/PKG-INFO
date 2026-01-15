@@ -31,9 +31,10 @@ fn factorial(n: int) -> int {
 }
 
 let result: int = factorial(5)
+print(result)
 ```
 
-**Status:** v1.0.0 — All Phases Complete ✅
+**Status:** v1.1.0 — Phase 5 Complete ✅
 
 ## ✨ Features
 
@@ -42,6 +43,7 @@ let result: int = factorial(5)
 - **Python Target** — Compiles to readable, standard Python 3.10+
 - **Fast Compilation** — Full pipeline in milliseconds
 - **Comprehensive Errors** — Clear messages with exact source locations
+- **Console Output** — Built-in `print()` for easy debugging (v1.1.0)
 
 ## 📦 Installation
 
@@ -64,7 +66,7 @@ pip install -e .
 
 ```bash
 quasar --version
-# Output: Quasar 1.0.0
+# Output: Quasar 1.1.0
 ```
 
 ## 🚀 Usage
@@ -220,10 +222,10 @@ fn fib(n: int) -> int {
     return fib(n - 1) + fib(n - 2)
 }
 
-// Calculate first 10 Fibonacci numbers
+// Calculate and print first 10 Fibonacci numbers
 let i: int = 0
 while i < 10 {
-    let value: int = fib(i)
+    print(fib(i))
     i = i + 1
 }
 ```
@@ -262,22 +264,24 @@ Quasar has comprehensive test coverage across all phases:
 pytest tests/ -v
 
 # Run specific phase tests
-pytest tests/lexer/ -v      # 93 tests
-pytest tests/parser/ -v     # 87 tests
-pytest tests/semantic/ -v   # 47 tests
-pytest tests/codegen/ -v    # 68 tests
+pytest tests/lexer/ -v      # 97 tests
+pytest tests/parser/ -v     # 93 tests
+pytest tests/semantic/ -v   # 55 tests
+pytest tests/codegen/ -v    # 80 tests
 pytest tests/cli/ -v        # 21 tests
+pytest tests/e2e/ -v        # 20 tests
 ```
 
 **Test Summary:**
 | Component | Tests   | Status |
 | --------- | ------- | ------ |
-| Lexer     | 93      | ✅      |
-| Parser    | 87      | ✅      |
-| Semantic  | 47      | ✅      |
-| CodeGen   | 68      | ✅      |
+| Lexer     | 97      | ✅      |
+| Parser    | 93      | ✅      |
+| Semantic  | 55      | ✅      |
+| CodeGen   | 80      | ✅      |
 | CLI       | 21      | ✅      |
-| **Total** | **316** | ✅      |
+| E2E       | 20      | ✅      |
+| **Total** | **366** | ✅      |
 
 ## 📁 Project Structure
 
@@ -295,7 +299,8 @@ quasar/
 │   ├── parser/         # Parser tests
 │   ├── semantic/       # Semantic tests
 │   ├── codegen/        # CodeGen tests
-│   └── cli/            # CLI tests
+│   ├── cli/            # CLI tests
+│   └── e2e/            # End-to-end tests
 ├── examples/           # Example Quasar programs
 └── docs/               # Documentation
 ```
@@ -309,11 +314,14 @@ quasar/
 - [x] Phase 3: Semantic Analyzer — Type checking & scope validation
 - [x] Phase 4: Code Generator — Python emission
 - [x] CLI — compile/run/check commands
-- [x] 316 passing tests
 
-### 🔜 Phase 5: Standard Library (Planned)
+### ✅ Completed (v1.1.0)
 
-- [ ] `print()` — Console output
+- [x] Phase 5: `print()` builtin — Console output
+- [x] 366 passing tests
+
+### 🔜 Phase 5.1: Extended Builtins (Planned)
+
 - [ ] `input()` — User input
 - [ ] `len()` — Length of strings
 - [ ] `str()`, `int()`, `float()` — Type conversions
@@ -333,7 +341,7 @@ Contributions are welcome! Please follow the TDD methodology:
 
 1. Write tests first
 2. Implement the feature
-3. Ensure all 316+ tests pass
+3. Ensure all 366+ tests pass
 4. Submit a PR
 
 ## 📄 License

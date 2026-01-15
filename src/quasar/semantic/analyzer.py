@@ -322,31 +322,41 @@ class SemanticAnalyzer:
     
     def _analyze_print_stmt(self, stmt: PrintStmt) -> None:
         """
-        Analyze print statement (Phase 5).
+        Analyze print statement (Phase 5 + 5.1).
         
         Checks:
-        - Expression must be valid
-        - Expression type must be primitive (int, float, bool, str)
+        - All arguments must be valid expressions
+        - All argument types must be primitive (int, float, bool, str)
+        - sep must be str type if provided
+        - end must be str type if provided
         
         Note: E0400 is reserved for future non-primitive types.
         Currently all types in Quasar are printable, so this check
         always passes for valid expressions.
         """
-        # Validate and get expression type
-        # This will raise appropriate errors for invalid expressions
-        # (e.g., E0001 for undefined variables, E0100 for type mismatches)
-        expr_type = self._get_expression_type(stmt.expression)
+        # Validate all positional arguments
+        for arg in stmt.arguments:
+            self._get_expression_type(arg)
         
-        # All primitive types are printable
-        # Reserved check for future non-primitive types:
-        # PRINTABLE_TYPES = {TypeAnnotation.INT, TypeAnnotation.FLOAT, 
-        #                   TypeAnnotation.BOOL, TypeAnnotation.STR}
-        # if expr_type not in PRINTABLE_TYPES:
-        #     raise SemanticError(
-        #         code="E0400",
-        #         message=f"cannot print value of type '{expr_type.name.lower()}'",
-        #         span=stmt.expression.span,
-        #     )
+        # Validate sep if provided (must be str)
+        if stmt.sep is not None:
+            sep_type = self._get_expression_type(stmt.sep)
+            if sep_type != TypeAnnotation.STR:
+                raise SemanticError(
+                    code="E0402",
+                    message=f"'sep' parameter must be type 'str', got '{sep_type.name.lower()}'",
+                    span=stmt.sep.span,
+                )
+        
+        # Validate end if provided (must be str)
+        if stmt.end is not None:
+            end_type = self._get_expression_type(stmt.end)
+            if end_type != TypeAnnotation.STR:
+                raise SemanticError(
+                    code="E0403",
+                    message=f"'end' parameter must be type 'str', got '{end_type.name.lower()}'",
+                    span=stmt.end.span,
+                )
     
     def _analyze_assign_stmt(self, stmt: AssignStmt) -> None:
         """

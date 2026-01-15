@@ -1,5 +1,5 @@
 """
-Tests for print statement code generation (Phase 5).
+Tests for print statement code generation (Phase 5 + 5.1).
 """
 
 import pytest
@@ -117,3 +117,90 @@ print(3)"""
         assert lines[0] == "print(1)"
         assert lines[1] == "print(2)"
         assert lines[2] == "print(3)"
+
+
+class TestPrintMultipleArgsCodeGen:
+    """Tests for print with multiple arguments (Phase 5.1)."""
+    
+    def test_codegen_print_two_args(self):
+        """print(1, 2) → print(1, 2)"""
+        code = generate("print(1, 2)")
+        assert code == "print(1, 2)"
+    
+    def test_codegen_print_three_args(self):
+        """print(1, 2, 3) → print(1, 2, 3)"""
+        code = generate("print(1, 2, 3)")
+        assert code == "print(1, 2, 3)"
+    
+    def test_codegen_print_mixed_types(self):
+        """print with mixed types"""
+        code = generate('print("x =", 42, true)')
+        assert code == 'print("x =", 42, True)'
+    
+    def test_codegen_print_variables(self):
+        """print with multiple variables"""
+        code = generate("let a: int = 1\nlet b: int = 2\nprint(a, b)")
+        lines = code.split("\n")
+        assert lines[2] == "print(a, b)"
+    
+    def test_codegen_print_expressions(self):
+        """print with expressions"""
+        code = generate("print(1 + 2, 3 * 4)")
+        assert code == "print(1 + 2, 3 * 4)"
+
+
+class TestPrintSepEndCodeGen:
+    """Tests for print with sep/end parameters (Phase 5.1)."""
+    
+    def test_codegen_print_with_sep(self):
+        """print(1, 2, sep=',') → print(1, 2, sep=',')"""
+        code = generate('print(1, 2, sep=",")')
+        assert code == 'print(1, 2, sep=",")'
+    
+    def test_codegen_print_with_end(self):
+        """print(1, end='') → print(1, end='')"""
+        code = generate('print(1, end="")')
+        assert code == 'print(1, end="")'
+    
+    def test_codegen_print_with_sep_and_end(self):
+        """print(1, 2, sep='-', end='!') → print(1, 2, sep='-', end='!')"""
+        code = generate('print(1, 2, sep="-", end="!")')
+        assert code == 'print(1, 2, sep="-", end="!")'
+    
+    def test_codegen_print_sep_variable(self):
+        """print with sep as variable"""
+        code = generate('let s: str = ","\nprint(1, 2, sep=s)')
+        lines = code.split("\n")
+        assert lines[1] == "print(1, 2, sep=s)"
+    
+    def test_codegen_print_end_variable(self):
+        """print with end as variable"""
+        code = generate('let e: str = ""\nprint(1, end=e)')
+        lines = code.split("\n")
+        assert lines[1] == "print(1, end=e)"
+    
+    def test_codegen_print_many_args_sep_end(self):
+        """print with many args and sep/end"""
+        code = generate('print(1, 2, 3, 4, 5, sep=", ", end="\\n")')
+        assert code == 'print(1, 2, 3, 4, 5, sep=", ", end="\\n")'
+    
+    def test_codegen_print_single_arg_end(self):
+        """print single arg with end (no sep needed)"""
+        code = generate('print(42, end="")')
+        assert code == 'print(42, end="")'
+    
+    def test_codegen_print_labeled_output(self):
+        """print('Label:', value) pattern"""
+        code = generate('let x: int = 100\nprint("Result:", x)')
+        lines = code.split("\n")
+        assert lines[1] == 'print("Result:", x)'
+    
+    def test_codegen_print_csv_style(self):
+        """print CSV-style output"""
+        code = generate('print("a", "b", "c", sep=",")')
+        assert code == 'print("a", "b", "c", sep=",")'
+    
+    def test_codegen_print_inline_no_newline(self):
+        """print without newline for inline output"""
+        code = generate('print("Loading", end="")')
+        assert code == 'print("Loading", end="")'
