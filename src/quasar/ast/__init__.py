@@ -66,6 +66,7 @@ from quasar.ast.types import (
     BOOL,
     STR,
     VOID,
+    ANY,
     list_of,
     is_primitive,
     is_list,
@@ -118,6 +119,7 @@ from quasar.ast.declarations import (
     ConstDecl,
     FnDecl,
     StructDecl,
+    ImportDecl,
     StructField,
 )
 
@@ -171,6 +173,7 @@ __all__ = [
     "ConstDecl",
     "FnDecl",
     "StructDecl",
+    "ImportDecl",
     "StructField",
     # Program
     "Program",

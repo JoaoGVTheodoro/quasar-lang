@@ -1,0 +1,10 @@
+import utils
+print("=== Multi-File Project Demo ===")
+print("")
+print("Calculating hypotenuse of 3.0 and 4.0...")
+h = utils.calculate_hypotenuse(3.0, 4.0)
+print("Result: {}".format(h))
+sum = utils.add(10, 20)
+print("10 + 20 = {}".format(sum))
+print("")
+print("=== Done ===")

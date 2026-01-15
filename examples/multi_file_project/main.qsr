@@ -1,0 +1,19 @@
+# main.qsr - Main program demonstrating multi-file imports
+# Uses both Python stdlib and local Quasar module
+
+import "./utils.qsr"
+
+print("=== Multi-File Project Demo ===")
+print("")
+
+# Use imported function
+print("Calculating hypotenuse of 3.0 and 4.0...")
+let h: float = utils.calculate_hypotenuse(3.0, 4.0)
+print("Result: {}", h)
+
+# Use imported simple function  
+let sum: int = utils.add(10, 20)
+print("10 + 20 = {}", sum)
+
+print("")
+print("=== Done ===")

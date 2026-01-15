@@ -1,0 +1,15 @@
+# utils.qsr - Utility library for multi-file example
+# Demonstrates exporting functions and structs
+
+import math
+
+fn calculate_hypotenuse(a: float, b: float) -> float {
+    let a_sq: float = a * a
+    let b_sq: float = b * b
+    let sum: float = a_sq + b_sq
+    return math.sqrt(sum)
+}
+
+fn add(x: int, y: int) -> int {
+    return x + y
+}

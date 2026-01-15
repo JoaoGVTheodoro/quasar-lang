@@ -16,6 +16,7 @@ from quasar.ast import (
     Param,
     StructDecl,
     StructField,
+    ImportDecl,
     # Statements
     Block,
     ExpressionStmt,
@@ -127,6 +128,8 @@ class CodeGenerator:
             self._generate_fn_decl(decl)
         elif isinstance(decl, StructDecl):
             self._generate_struct_decl(decl)
+        elif isinstance(decl, ImportDecl):
+            self._generate_import_decl(decl)
         elif isinstance(decl, ExpressionStmt):
             self._generate_expression_stmt(decl)
         elif isinstance(decl, IfStmt):
@@ -483,3 +486,20 @@ class CodeGenerator:
         obj = self._generate_expression(stmt.object)
         value = self._generate_expression(stmt.value)
         self._emit(f"{obj}.{stmt.member} = {value}")
+
+    def _generate_import_decl(self, decl: ImportDecl) -> None:
+        """Generate import statement (Phase 9)."""
+        if decl.is_local:
+            # Local .qsr file: strip .qsr extension and convert to Python import
+            module_path = decl.module
+            if module_path.endswith(".qsr"):
+                module_path = module_path[:-4]
+            # Remove leading ./
+            if module_path.startswith("./"):
+                module_path = module_path[2:]
+            # Replace / with . for Python import
+            module_path = module_path.replace("/", ".")
+            self._emit(f"import {module_path}")
+        else:
+            # Python stdlib import
+            self._emit(f"import {decl.module}")

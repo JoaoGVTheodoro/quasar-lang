@@ -7,6 +7,7 @@ Performs semantic analysis on a Quasar AST, including:
 - Control flow validation (break/continue only in loops, return validation)
 """
 
+import os
 from typing import Optional
 
 from quasar.ast import (
@@ -19,6 +20,7 @@ from quasar.ast import (
     Param,
     StructDecl,
     StructField,
+    ImportDecl,
     # Statements
     Block,
     ExpressionStmt,
@@ -57,13 +59,14 @@ from quasar.ast import (
     BOOL,
     STR,
     VOID,
+    ANY,
     is_list,
     BinaryOp,
     UnaryOp,
     Span,
 )
 from quasar.semantic.errors import SemanticError
-from quasar.semantic.symbols import Symbol, SymbolTable
+from quasar.semantic.symbols import Symbol, ModuleSymbol, SymbolTable
 
 
 class SemanticAnalyzer:
@@ -85,6 +88,9 @@ class SemanticAnalyzer:
         """
         if expected == actual:
             return True
+        # ANY type is compatible with anything (for external module access)
+        if actual == ANY or expected == ANY:
+            return True
         # Empty list ([void]) is compatible with any list type
         if isinstance(expected, ListType) and isinstance(actual, ListType):
             if actual.element_type == VOID:
@@ -98,6 +104,8 @@ class SemanticAnalyzer:
         self._current_function_return_type: Optional[TypeAnnotation] = None
         # Store struct definitions: name -> list of (field_name, field_type) tuples
         self._defined_types: dict[str, list[tuple[str, QuasarType]]] = {}
+        # Track imported modules (Phase 9)
+        self._imported_modules: dict[str, ModuleSymbol] = {}
     
     def analyze(self, program: Program) -> Program:
         """
@@ -123,6 +131,8 @@ class SemanticAnalyzer:
             self._analyze_fn_decl(decl)
         elif isinstance(decl, StructDecl):
             self._analyze_struct_decl(decl)
+        elif isinstance(decl, ImportDecl):
+            self._analyze_import_decl(decl)
         elif isinstance(decl, ExpressionStmt):
             self._analyze_expression_stmt(decl)
         elif isinstance(decl, IfStmt):
@@ -396,7 +406,7 @@ class SemanticAnalyzer:
             return
         
         return_type = self._get_expression_type(stmt.value)
-        if return_type != self._current_function_return_type:
+        if not self._types_compatible(self._current_function_return_type, return_type):
             raise SemanticError(
                 code="E0302",
                 message=f"return type mismatch: expected {self._current_function_return_type}, got {return_type}",
@@ -690,8 +700,13 @@ class SemanticAnalyzer:
         Get the type of an identifier.
         
         Checks:
-        - E0001: Identifier must be declared
+        - E0001: Identifier must be declared (or be an imported module)
         """
+        # Check if it's an imported module
+        if expr.name in self._imported_modules:
+            # Return a special "module" type marker
+            return PrimitiveType(f"__module__{expr.name}")
+        
         symbol = self._symbols.lookup(expr.name)
         if symbol is None:
             raise SemanticError(
@@ -853,6 +868,7 @@ class SemanticAnalyzer:
         - E0507: len() argument errors
         
         Built-in functions (len, push) are intercepted here.
+        Module functions (math.sqrt) return ANY type.
         """
         # Intercept built-in functions (Phase 6.2, Phase 7.0, Phase 7.1)
         if expr.callee == "len":
@@ -863,6 +879,17 @@ class SemanticAnalyzer:
             return self._check_builtin_input(expr)
         if expr.callee in {"int", "float", "str", "bool"}:
             return self._check_builtin_cast(expr)
+        
+        # Check for module function call (Phase 9)
+        # Format: module.function (dotted name)
+        if "." in expr.callee:
+            parts = expr.callee.split(".", 1)
+            module_name = parts[0]
+            if module_name in self._imported_modules:
+                # It's a module function - validate arguments but return ANY
+                for arg in expr.arguments:
+                    self._get_expression_type(arg)
+                return ANY
         
         symbol = self._symbols.lookup(expr.callee)
         if symbol is None:
@@ -1140,6 +1167,13 @@ class SemanticAnalyzer:
         # Get the type of the object being accessed
         obj_type = self._get_expression_type(expr.object)
         
+        # Check if accessing a module member (Phase 9)
+        # Module types are marked as __module__<name>
+        if isinstance(obj_type, PrimitiveType) and obj_type.name.startswith("__module__"):
+            # For Python modules, return ANY type (opaque)
+            # This allows any member access without type checking
+            return ANY
+        
         # E0807: Check object is a struct type
         # We use PrimitiveType with struct name as placeholder
         if not isinstance(obj_type, PrimitiveType):
@@ -1152,7 +1186,7 @@ class SemanticAnalyzer:
         struct_name = obj_type.name
         
         # Check if it's a built-in primitive type
-        if struct_name in {"int", "float", "bool", "str"}:
+        if struct_name in {"int", "float", "bool", "str", "any"}:
             raise SemanticError(
                 code="E0807",
                 message=f"cannot access field of primitive type '{struct_name}'",
@@ -1241,3 +1275,48 @@ class SemanticAnalyzer:
                 message=f"cannot assign '{actual_type}' to field '{stmt.member}' of type '{expected_type}'",
                 span=stmt.value.span,
             )
+
+    def _analyze_import_decl(self, decl: ImportDecl) -> None:
+        """
+        Analyze import declaration (Phase 9).
+        
+        Checks:
+        - E0900: No duplicate imports
+        - E0901: Local file must exist
+        
+        Registers the module as a ModuleSymbol.
+        """
+        module_path = decl.module
+        
+        # For local imports, extract the module name (basename without extension)
+        if decl.is_local:
+            # Extract module name from path: "./lib/utils.qsr" -> "utils"
+            basename = os.path.basename(module_path)
+            if basename.endswith(".qsr"):
+                module_name = basename[:-4]
+            else:
+                module_name = basename
+            
+            # E0901: Check file exists
+            if not os.path.exists(module_path):
+                raise SemanticError(
+                    code="E0901",
+                    message=f"module not found: '{module_path}'",
+                    span=decl.span,
+                )
+        else:
+            module_name = module_path
+        
+        # Check for duplicate import
+        if module_name in self._imported_modules:
+            raise SemanticError(
+                code="E0900",
+                message=f"duplicate import: '{module_name}'",
+                span=decl.span,
+            )
+        
+        # Register module symbol with the extracted name
+        self._imported_modules[module_name] = ModuleSymbol(
+            name=module_name,
+            is_local=decl.is_local,
+        )

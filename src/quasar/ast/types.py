@@ -64,6 +64,7 @@ FLOAT = PrimitiveType("float")
 BOOL = PrimitiveType("bool")
 STR = PrimitiveType("str")
 VOID = PrimitiveType("void")
+ANY = PrimitiveType("any")  # Opaque type for external module access (Phase 9)
 
 
 # =============================================================================
