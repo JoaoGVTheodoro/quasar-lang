@@ -1,0 +1,41 @@
+# Fibonacci Sequence Generator
+# ============================
+# Generates the first 20 Fibonacci numbers using lists and loops.
+#
+# Demonstrates:
+# - List initialization and dynamic growth
+# - For loops with ranges (2..20)
+# - Index expressions (fib[i-1], fib[i-2])
+# - Built-in push() function
+# - Format strings for output
+
+# Initialize with first two Fibonacci numbers
+let fib: [int] = [0, 1]
+
+# Generate remaining terms using the recurrence relation:
+# F(n) = F(n-1) + F(n-2)
+for i in 2..20 {
+    let next: int = fib[i - 1] + fib[i - 2]
+    push(fib, next)
+}
+
+# Display results
+print("=== Fibonacci Sequence (first 20 terms) ===")
+print("")
+
+# Print each term with its index
+for i in 0..len(fib) {
+    print("F({}) = {}", i, fib[i])
+}
+
+# Summary statistics
+print("")
+print("Total terms: {}", len(fib))
+print("Last term: {}", fib[len(fib) - 1])
+
+# Calculate sum of all terms
+let total: int = 0
+for n in fib {
+    total = total + n
+}
+print("Sum of all terms: {}", total)

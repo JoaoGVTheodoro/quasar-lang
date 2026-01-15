@@ -245,3 +245,94 @@ class BoolLiteral(Expression):
             f"value={self.value!r}, "
             f"span={self.span!r})"
         )
+
+
+@dataclass
+class ListLiteral(Expression):
+    """
+    List literal expression (Phase 6.0).
+    
+    Examples:
+        []
+        [1, 2, 3]
+        ["a", "b", "c"]
+        [[1, 2], [3, 4]]
+    
+    Attributes:
+        elements: List of element expressions.
+        span: Source location.
+    """
+    
+    elements: list[Expression]
+    span: Span
+    
+    def __repr__(self) -> str:
+        """Deterministic representation for snapshots."""
+        return (
+            f"ListLiteral("
+            f"elements={self.elements!r}, "
+            f"span={self.span!r})"
+        )
+
+
+@dataclass
+class IndexExpr(Expression):
+    """
+    Index access expression (Phase 6.1).
+    
+    Examples:
+        list[0]
+        matrix[i][j]
+        arr[1 + 1]
+    
+    Attributes:
+        target: The expression being indexed (list).
+        index: The index expression (must be int at runtime).
+        span: Source location.
+    """
+    
+    target: Expression
+    index: Expression
+    span: Span
+    
+    def __repr__(self) -> str:
+        """Deterministic representation for snapshots."""
+        return (
+            f"IndexExpr("
+            f"target={self.target!r}, "
+            f"index={self.index!r}, "
+            f"span={self.span!r})"
+        )
+
+
+@dataclass
+class RangeExpr(Expression):
+    """
+    Range expression (Phase 6.3).
+    
+    Examples:
+        0..10
+        start..end
+        1..n+1
+    
+    Note: Ranges are exclusive on the end (like Python range).
+    
+    Attributes:
+        start: The starting value expression (must be int).
+        end: The ending value expression (must be int, exclusive).
+        span: Source location.
+    """
+    
+    start: Expression
+    end: Expression
+    span: Span
+    
+    def __repr__(self) -> str:
+        """Deterministic representation for snapshots."""
+        return (
+            f"RangeExpr("
+            f"start={self.start!r}, "
+            f"end={self.end!r}, "
+            f"span={self.span!r})"
+        )
+

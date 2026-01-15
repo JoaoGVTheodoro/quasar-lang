@@ -19,11 +19,13 @@ from quasar.ast import (
     ExpressionStmt,
     IfStmt,
     WhileStmt,
+    ForStmt,
     ReturnStmt,
     BreakStmt,
     ContinueStmt,
     AssignStmt,
     PrintStmt,
+    IndexAssignStmt,
     # Expressions
     BinaryExpr,
     UnaryExpr,
@@ -33,6 +35,9 @@ from quasar.ast import (
     FloatLiteral,
     StringLiteral,
     BoolLiteral,
+    ListLiteral,
+    IndexExpr,
+    RangeExpr,
     # Types and operators
     BinaryOp,
     UnaryOp,
@@ -115,6 +120,8 @@ class CodeGenerator:
             self._generate_if_stmt(decl)
         elif isinstance(decl, WhileStmt):
             self._generate_while_stmt(decl)
+        elif isinstance(decl, ForStmt):
+            self._generate_for_stmt(decl)
         elif isinstance(decl, ReturnStmt):
             self._generate_return_stmt(decl)
         elif isinstance(decl, BreakStmt):
@@ -125,6 +132,8 @@ class CodeGenerator:
             self._generate_print_stmt(decl)
         elif isinstance(decl, AssignStmt):
             self._generate_assign_stmt(decl)
+        elif isinstance(decl, IndexAssignStmt):
+            self._generate_index_assign_stmt(decl)
         elif isinstance(decl, Block):
             self._generate_block(decl)
     
@@ -187,8 +196,16 @@ class CodeGenerator:
         self._indent_level += 1
         for decl in stmt.body.declarations:
             self._generate_declaration(decl)
-        self._indent_level -= 1
-    
+        self._indent_level -= 1    
+    def _generate_for_stmt(self, stmt: ForStmt) -> None:
+        """Generate: for var in iterable:\n    body (Phase 6.3)"""
+        iterable = self._generate_expression(stmt.iterable)
+        self._emit(f"for {stmt.variable} in {iterable}:")
+        
+        self._indent_level += 1
+        for decl in stmt.body.declarations:
+            self._generate_declaration(decl)
+        self._indent_level -= 1    
     def _generate_return_stmt(self, stmt: ReturnStmt) -> None:
         """Generate: return expr"""
         expr = self._generate_expression(stmt.value)
@@ -255,6 +272,12 @@ class CodeGenerator:
         expr = self._generate_expression(stmt.value)
         self._emit(f"{stmt.target} = {expr}")
     
+    def _generate_index_assign_stmt(self, stmt: IndexAssignStmt) -> None:
+        """Generate: target[index] = expr (Phase 6.1)"""
+        target = self._generate_expression(stmt.target)
+        value = self._generate_expression(stmt.value)
+        self._emit(f"{target} = {value}")
+    
     # =========================================================================
     # Expression Generation
     # =========================================================================
@@ -277,6 +300,12 @@ class CodeGenerator:
             return self._generate_unary_expr(expr)
         elif isinstance(expr, CallExpr):
             return self._generate_call_expr(expr)
+        elif isinstance(expr, ListLiteral):
+            return self._generate_list_literal(expr)
+        elif isinstance(expr, IndexExpr):
+            return self._generate_index_expr(expr)
+        elif isinstance(expr, RangeExpr):
+            return self._generate_range_expr(expr)
         else:
             return ""
     
@@ -299,9 +328,43 @@ class CodeGenerator:
             return operand
     
     def _generate_call_expr(self, expr: CallExpr) -> str:
-        """Generate function call."""
+        """Generate function call.
+        
+        Intercepts built-in functions (Phase 6.2):
+        - len(x) → len(x) (Python native)
+        - push(x, v) → x.append(v)
+        """
+        # Built-in: len(x) → len(x)
+        if expr.callee == "len":
+            arg = self._generate_expression(expr.arguments[0])
+            return f"len({arg})"
+        
+        # Built-in: push(x, v) → x.append(v)
+        if expr.callee == "push":
+            list_arg = self._generate_expression(expr.arguments[0])
+            value_arg = self._generate_expression(expr.arguments[1])
+            return f"{list_arg}.append({value_arg})"
+        
+        # Regular function call
         args = ", ".join(self._generate_expression(arg) for arg in expr.arguments)
         return f"{expr.callee}({args})"
+    
+    def _generate_list_literal(self, expr: ListLiteral) -> str:
+        """Generate list literal: [a, b, c]"""
+        elements = ", ".join(self._generate_expression(el) for el in expr.elements)
+        return f"[{elements}]"
+    
+    def _generate_index_expr(self, expr: IndexExpr) -> str:
+        """Generate index access: target[index] (Phase 6.1)"""
+        target = self._generate_expression(expr.target)
+        index = self._generate_expression(expr.index)
+        return f"{target}[{index}]"
+    
+    def _generate_range_expr(self, expr: RangeExpr) -> str:
+        """Generate range: start..end → range(start, end) (Phase 6.3)"""
+        start = self._generate_expression(expr.start)
+        end = self._generate_expression(expr.end)
+        return f"range({start}, {end})"
     
     def _binary_op_to_python(self, op: BinaryOp) -> str:
         """Convert Quasar binary operator to Python operator."""

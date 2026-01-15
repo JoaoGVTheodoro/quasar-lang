@@ -56,7 +56,20 @@ Program:
 from quasar.ast.span import Span
 
 # Types
-from quasar.ast.types import TypeAnnotation
+from quasar.ast.types import (
+    TypeAnnotation,
+    QuasarType,
+    PrimitiveType,
+    ListType,
+    INT,
+    FLOAT,
+    BOOL,
+    STR,
+    VOID,
+    list_of,
+    is_primitive,
+    is_list,
+)
 
 # Operators
 from quasar.ast.operators import BinaryOp, UnaryOp
@@ -74,6 +87,9 @@ from quasar.ast.expressions import (
     FloatLiteral,
     StringLiteral,
     BoolLiteral,
+    ListLiteral,
+    IndexExpr,
+    RangeExpr,
 )
 
 # Statements
@@ -87,6 +103,8 @@ from quasar.ast.statements import (
     ContinueStmt,
     AssignStmt,
     PrintStmt,
+    IndexAssignStmt,
+    ForStmt,
 )
 
 # Declarations
@@ -122,6 +140,9 @@ __all__ = [
     "FloatLiteral",
     "StringLiteral",
     "BoolLiteral",
+    "ListLiteral",
+    "IndexExpr",
+    "RangeExpr",
     # Statements
     "Block",
     "ExpressionStmt",
@@ -132,6 +153,8 @@ __all__ = [
     "ContinueStmt",
     "AssignStmt",
     "PrintStmt",
+    "IndexAssignStmt",
+    "ForStmt",
     # Declarations
     "Param",
     "VarDecl",

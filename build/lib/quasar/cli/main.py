@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional
 
 # Version info
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 # Exit codes
 EXIT_SUCCESS = 0

@@ -1,0 +1,63 @@
+# Prime Number Finder
+# ====================
+# Finds all prime numbers up to a given limit using trial division.
+#
+# Demonstrates:
+# - Nested loops for primality testing
+# - Boolean flags and conditional logic
+# - List filtering with push()
+# - Break statement for early exit
+# - Format strings for output
+
+let limit: int = 50
+
+# List to store discovered primes
+let primes: [int] = []
+
+# Check each number from 2 to limit
+for n in 2..limit + 1 {
+    # Assume n is prime until proven otherwise
+    let is_prime: bool = true
+    
+    # Test divisibility by all numbers from 2 to n-1
+    # (Optimization: could stop at sqrt(n), but keeping it simple)
+    for divisor in 2..n {
+        if n % divisor == 0 {
+            # Found a divisor, not prime
+            is_prime = false
+            break
+        }
+    }
+    
+    # If no divisor found, n is prime
+    if is_prime {
+        push(primes, n)
+    }
+}
+
+# Display results
+print("=== Prime Numbers up to {} ===", limit)
+print("")
+
+# Print all primes
+print("Primes found: {}", len(primes))
+print("")
+
+# Print primes in rows of 10
+let count: int = 0
+for p in primes {
+    print(p, end=" ")
+    count = count + 1
+    if count % 10 == 0 {
+        print("")
+    }
+}
+print("")
+
+# Bonus: Sum of all primes
+let sum: int = 0
+for p in primes {
+    sum = sum + p
+}
+print("")
+print("Sum of primes: {}", sum)

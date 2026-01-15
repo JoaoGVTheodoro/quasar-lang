@@ -271,3 +271,73 @@ class PrintStmt(Statement):
             f"end={self.end!r}, "
             f"span={self.span!r})"
         )
+
+
+@dataclass
+class IndexAssignStmt(Statement):
+    """
+    Index assignment statement (Phase 6.1): assign to a list element.
+    
+    Examples:
+        list[0] = 42
+        matrix[i][j] = value
+    
+    Note: Distinguished from AssignStmt to simplify semantic analysis.
+    The target must be a list, and the value must match the element type.
+    
+    Attributes:
+        target: The IndexExpr being assigned to.
+        value: Expression to assign.
+        span: Source location.
+    """
+    
+    target: Expression  # Will be IndexExpr
+    value: Expression
+    span: Span
+    
+    def __repr__(self) -> str:
+        """Deterministic representation for snapshots."""
+        return (
+            f"IndexAssignStmt("
+            f"target={self.target!r}, "
+            f"value={self.value!r}, "
+            f"span={self.span!r})"
+        )
+
+
+@dataclass
+class ForStmt(Statement):
+    """
+    For loop statement (Phase 6.3): iterate over a range or list.
+    
+    Examples:
+        for i in 0..10 { print(i) }
+        for item in list { print(item) }
+        for x in [1, 2, 3] { print(x) }
+    
+    Note: The variable is implicitly declared in the loop scope.
+    Its type is inferred from the iterable:
+    - Range (0..10) → INT
+    - List ([T]) → T (element type)
+    
+    Attributes:
+        variable: Name of the iteration variable.
+        iterable: Expression to iterate over (range or list).
+        body: Block to execute for each iteration.
+        span: Source location.
+    """
+    
+    variable: str
+    iterable: Expression
+    body: Block
+    span: Span
+    
+    def __repr__(self) -> str:
+        """Deterministic representation for snapshots."""
+        return (
+            f"ForStmt("
+            f"variable={self.variable!r}, "
+            f"iterable={self.iterable!r}, "
+            f"body={self.body!r}, "
+            f"span={self.span!r})"
+        )

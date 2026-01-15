@@ -21,7 +21,7 @@ class TokenType(Enum):
     - Special: EOF and identifiers
     """
     
-    # === Keywords (14) ===
+    # === Keywords (16) ===
     LET = auto()        # let
     CONST = auto()      # const
     FN = auto()         # fn
@@ -29,6 +29,8 @@ class TokenType(Enum):
     IF = auto()         # if
     ELSE = auto()       # else
     WHILE = auto()      # while
+    FOR = auto()        # for (Phase 6.3)
+    IN = auto()         # in (Phase 6.3)
     BREAK = auto()      # break
     CONTINUE = auto()   # continue
     TRUE = auto()       # true
@@ -75,14 +77,17 @@ class TokenType(Enum):
     # === Assignment (1) ===
     EQUAL = auto()      # =
     
-    # === Punctuation (7) ===
+    # === Punctuation (10) ===
     LPAREN = auto()     # (
     RPAREN = auto()     # )
     LBRACE = auto()     # {
     RBRACE = auto()     # }
+    LBRACKET = auto()   # [ (Phase 6.0)
+    RBRACKET = auto()   # ] (Phase 6.0)
     COLON = auto()      # :
     COMMA = auto()      # ,
     ARROW = auto()      # ->
+    DOTDOT = auto()     # .. (Phase 6.3 - range operator)
     
     # === Special (1) ===
     EOF = auto()        # End of file
@@ -102,6 +107,8 @@ KEYWORDS: dict[str, TokenType] = {
     "if": TokenType.IF,
     "else": TokenType.ELSE,
     "while": TokenType.WHILE,
+    "for": TokenType.FOR,      # Phase 6.3
+    "in": TokenType.IN,        # Phase 6.3
     "break": TokenType.BREAK,
     "continue": TokenType.CONTINUE,
     "true": TokenType.TRUE,

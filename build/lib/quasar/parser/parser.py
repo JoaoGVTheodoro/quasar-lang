@@ -64,7 +64,16 @@ Precedence (lowest to highest):
 """
 
 from quasar.ast.span import Span
-from quasar.ast.types import TypeAnnotation
+from quasar.ast.types import (
+    TypeAnnotation,
+    QuasarType,
+    PrimitiveType,
+    ListType,
+    INT,
+    FLOAT,
+    BOOL,
+    STR,
+)
 from quasar.ast.operators import BinaryOp, UnaryOp
 from quasar.ast.base import Declaration, Expression, Statement
 from quasar.ast.expressions import (
@@ -76,6 +85,9 @@ from quasar.ast.expressions import (
     FloatLiteral,
     StringLiteral,
     BoolLiteral,
+    ListLiteral,
+    IndexExpr,
+    RangeExpr,
 )
 from quasar.ast.statements import (
     Block,
@@ -87,6 +99,8 @@ from quasar.ast.statements import (
     ContinueStmt,
     AssignStmt,
     PrintStmt,
+    IndexAssignStmt,
+    ForStmt,
 )
 from quasar.ast.declarations import (
     Param,
@@ -362,22 +376,31 @@ class Parser:
             span=self._merge_spans(start, type_span),
         )
     
-    def _type_annotation(self) -> TypeAnnotation:
+    def _type_annotation(self) -> "QuasarType":
         """
         Parse a type annotation.
         
-        type → "int" | "float" | "bool" | "str"
+        type → primitive_type | list_type
+        primitive_type → "int" | "float" | "bool" | "str"
+        list_type → "[" type "]"
         """
-        if self._match(TokenType.INT):
-            return TypeAnnotation.INT
-        if self._match(TokenType.FLOAT):
-            return TypeAnnotation.FLOAT
-        if self._match(TokenType.BOOL):
-            return TypeAnnotation.BOOL
-        if self._match(TokenType.STR):
-            return TypeAnnotation.STR
+        # List type: [T]
+        if self._match(TokenType.LBRACKET):
+            element_type = self._type_annotation()
+            self._consume(TokenType.RBRACKET, "expected ']' after list element type")
+            return ListType(element_type)
         
-        raise self._error("expected type name (int, float, bool, or str)")
+        # Primitive types
+        if self._match(TokenType.INT):
+            return INT
+        if self._match(TokenType.FLOAT):
+            return FLOAT
+        if self._match(TokenType.BOOL):
+            return BOOL
+        if self._match(TokenType.STR):
+            return STR
+        
+        raise self._error("expected type name (int, float, bool, str, or [type])")
     
     # =========================================================================
     # Statements
@@ -387,13 +410,16 @@ class Parser:
         """
         Parse a statement.
         
-        statement → if_stmt | while_stmt | return_stmt | break_stmt
-                  | continue_stmt | print_stmt | block | assign_stmt | expr_stmt
+        statement → if_stmt | while_stmt | for_stmt | return_stmt | break_stmt
+                  | continue_stmt | print_stmt | block | assign_stmt 
+                  | index_assign_stmt | expr_stmt
         """
         if self._check(TokenType.IF):
             return self._if_stmt()
         if self._check(TokenType.WHILE):
             return self._while_stmt()
+        if self._check(TokenType.FOR):
+            return self._for_stmt()
         if self._check(TokenType.RETURN):
             return self._return_stmt()
         if self._check(TokenType.BREAK):
@@ -405,43 +431,53 @@ class Parser:
         if self._check(TokenType.LBRACE):
             return self._block()
         
-        # Distinguish between assign_stmt and expr_stmt
-        # Both can start with IDENTIFIER
-        # assign_stmt: IDENT "=" expression
-        # expr_stmt: expression (which can be just IDENT or IDENT(...))
-        if self._check(TokenType.IDENTIFIER):
-            return self._assign_or_expr_stmt()
-        
-        return self._expr_stmt()
+        # Assignments and expression statements share the same start
+        # Parse as expression first, then check for '=' to determine type
+        return self._assign_or_expr_stmt()
     
     def _assign_or_expr_stmt(self) -> Statement:
         """
         Parse either an assignment statement or expression statement.
         
-        Lookahead to determine which:
-        - IDENT "=" -> assign_stmt
-        - otherwise -> expr_stmt
-        """
-        # Save position for potential backtrack
-        start_token = self._peek()
+        Handles:
+        - IDENT "=" expr         → AssignStmt
+        - IDENT "[" expr "]" "=" expr → IndexAssignStmt (Phase 6.1)
+        - otherwise              → ExpressionStmt
         
-        # Check if this is assignment: IDENT followed by =
-        if (self._check(TokenType.IDENTIFIER) and 
-            self._current + 1 < len(self._tokens) and
-            self._tokens[self._current + 1].type == TokenType.EQUAL):
-            # It's an assignment
-            name_token = self._advance()  # consume IDENTIFIER
-            self._advance()  # consume '='
+        Strategy: Parse expression first, then check if followed by "=".
+        """
+        # Parse the left-hand side as an expression
+        expr = self._expression()
+        
+        # Check if this is an assignment
+        if self._match(TokenType.EQUAL):
             value = self._expression()
             
-            return AssignStmt(
-                target=name_token.lexeme,
-                value=value,
-                span=self._merge_spans(name_token.span, value.span),
-            )
+            if isinstance(expr, Identifier):
+                # Simple variable assignment
+                return AssignStmt(
+                    target=expr.name,
+                    value=value,
+                    span=self._merge_spans(expr.span, value.span),
+                )
+            elif isinstance(expr, IndexExpr):
+                # Index assignment (Phase 6.1)
+                return IndexAssignStmt(
+                    target=expr,
+                    value=value,
+                    span=self._merge_spans(expr.span, value.span),
+                )
+            else:
+                raise ParserError(
+                    message="invalid assignment target",
+                    span=expr.span,
+                )
         
         # Otherwise it's an expression statement
-        return self._expr_stmt()
+        return ExpressionStmt(
+            expression=expr,
+            span=expr.span,
+        )
     
     def _if_stmt(self) -> IfStmt:
         """
@@ -482,6 +518,38 @@ class Parser:
         
         return WhileStmt(
             condition=condition,
+            body=body,
+            span=self._merge_spans(start.span, body.span),
+        )
+    
+    def _for_stmt(self) -> ForStmt:
+        """
+        Parse a for statement (Phase 6.3).
+        
+        for_stmt → "for" IDENT "in" expression block
+        
+        The expression can be:
+        - A range: 0..10, start..end
+        - A list: [1, 2, 3], my_list
+        """
+        start = self._advance()  # consume 'for'
+        
+        # Parse iteration variable
+        var_token = self._consume(TokenType.IDENTIFIER, "expected variable name after 'for'")
+        variable = var_token.lexeme
+        
+        # Parse 'in' keyword
+        self._consume(TokenType.IN, "expected 'in' after variable name")
+        
+        # Parse iterable expression (could be range or list)
+        iterable = self._expression()
+        
+        # Parse body
+        body = self._block()
+        
+        return ForStmt(
+            variable=variable,
+            iterable=iterable,
             body=body,
             span=self._merge_spans(start.span, body.span),
         )
@@ -600,9 +668,34 @@ class Parser:
         """
         Parse an expression.
         
-        expression → logic_or
+        expression → range_expr
+        range_expr → logic_or (".." logic_or)?
+        
+        Range has lowest precedence and is NOT left-associative
+        (you can't write a..b..c).
         """
-        return self._logic_or()
+        return self._range_expr()
+    
+    def _range_expr(self) -> Expression:
+        """
+        Parse range expression (Phase 6.3).
+        
+        range_expr → logic_or (".." logic_or)?
+        
+        Precedence: 0 (lowest)
+        Not associative (a..b..c is invalid)
+        """
+        left = self._logic_or()
+        
+        if self._match(TokenType.DOTDOT):
+            right = self._logic_or()
+            return RangeExpr(
+                start=left,
+                end=right,
+                span=self._merge_spans(left.span, right.span),
+            )
+        
+        return left
     
     def _logic_or(self) -> Expression:
         """
@@ -779,35 +872,51 @@ class Parser:
     
     def _call(self) -> Expression:
         """
-        Parse call expression.
+        Parse call and index expression.
         
-        call → primary ("(" arg_list? ")")?
+        call → primary ( "(" arg_list? ")" | "[" expression "]" )*
         
         Precedence: 8
         Associativity: left
+        
+        Handles both function calls and index access (Phase 6.1).
+        Supports chaining: matrix[0][1], list[0] + 1, etc.
         """
         expr = self._primary()
         
-        # Check for function call
-        if self._match(TokenType.LPAREN):
-            # Must be an identifier for a function call
-            if not isinstance(expr, Identifier):
-                raise ParserError(
-                    message="can only call functions",
-                    span=expr.span,
+        while True:
+            if self._match(TokenType.LPAREN):
+                # Function call
+                # Must be an identifier for a function call
+                if not isinstance(expr, Identifier):
+                    raise ParserError(
+                        message="can only call functions",
+                        span=expr.span,
+                    )
+                
+                arguments: list[Expression] = []
+                if not self._check(TokenType.RPAREN):
+                    arguments = self._arg_list()
+                
+                end = self._consume(TokenType.RPAREN, "expected ')' after arguments")
+                
+                expr = CallExpr(
+                    callee=expr.name,
+                    arguments=arguments,
+                    span=self._merge_spans(expr.span, end.span),
                 )
-            
-            arguments: list[Expression] = []
-            if not self._check(TokenType.RPAREN):
-                arguments = self._arg_list()
-            
-            end = self._consume(TokenType.RPAREN, "expected ')' after arguments")
-            
-            expr = CallExpr(
-                callee=expr.name,
-                arguments=arguments,
-                span=self._merge_spans(expr.span, end.span),
-            )
+            elif self._match(TokenType.LBRACKET):
+                # Index access (Phase 6.1)
+                index = self._expression()
+                end = self._consume(TokenType.RBRACKET, "expected ']' after index")
+                
+                expr = IndexExpr(
+                    target=expr,
+                    index=index,
+                    span=self._merge_spans(expr.span, end.span),
+                )
+            else:
+                break
         
         return expr
     
@@ -828,7 +937,10 @@ class Parser:
         """
         Parse primary expression.
         
-        primary → INT | FLOAT | STRING | "true" | "false" | IDENT | "(" expression ")"
+        primary → INT | FLOAT | STRING | "true" | "false" | IDENT 
+                | "(" expression ")" | list_literal
+        
+        list_literal → "[" (expression ("," expression)* ","?)? "]"
         
         Precedence: 9 (highest)
         """
@@ -889,5 +1001,40 @@ class Parser:
             # Actually, per D2.1, we just return the inner expression
             return expr
         
+        # List literal (Phase 6.0)
+        if self._match(TokenType.LBRACKET):
+            return self._list_literal()
+        
         # Error: unexpected token
         raise self._error(f"expected expression, got '{self._peek().lexeme}'")
+    
+    def _list_literal(self) -> ListLiteral:
+        """
+        Parse a list literal expression.
+        
+        list_literal → "[" (expression ("," expression)* ","?)? "]"
+        
+        Called after "[" has been consumed.
+        """
+        start = self._previous()  # The "[" token
+        elements: list[Expression] = []
+        
+        # Check for empty list
+        if not self._check(TokenType.RBRACKET):
+            # Parse first element
+            elements.append(self._expression())
+            
+            # Parse remaining elements
+            while self._match(TokenType.COMMA):
+                # Allow trailing comma
+                if self._check(TokenType.RBRACKET):
+                    break
+                elements.append(self._expression())
+        
+        self._consume(TokenType.RBRACKET, "expected ']' after list elements")
+        end = self._previous()
+        
+        return ListLiteral(
+            elements=elements,
+            span=self._merge_spans(start.span, end.span),
+        )

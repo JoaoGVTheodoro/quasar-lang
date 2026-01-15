@@ -1,11 +1,11 @@
 Metadata-Version: 2.4
 Name: quasar
-Version: 0.1.0
+Version: 1.3.0
 Summary: Quasar programming language - compiled to Python
 Author: Quasar Team
 License: MIT
 Keywords: compiler,programming-language,python
-Classifier: Development Status :: 1 - Planning
+Classifier: Development Status :: 4 - Beta
 Classifier: Intended Audience :: Developers
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 3

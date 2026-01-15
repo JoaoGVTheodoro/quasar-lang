@@ -184,6 +184,10 @@ class Lexer:
                 self._add_token(TokenType.LBRACE)
             case "}":
                 self._add_token(TokenType.RBRACE)
+            case "[":
+                self._add_token(TokenType.LBRACKET)
+            case "]":
+                self._add_token(TokenType.RBRACKET)
             case ":":
                 self._add_token(TokenType.COLON)
             case ",":
@@ -240,6 +244,13 @@ class Lexer:
             # Whitespace (ignore)
             case " " | "\t" | "\r" | "\n":
                 pass
+            
+            # Range operator (..)
+            case ".":
+                if self._match("."):
+                    self._add_token(TokenType.DOTDOT)
+                else:
+                    self._error(f"unexpected character '.'; did you mean '..'?")
             
             # String literal
             case '"':

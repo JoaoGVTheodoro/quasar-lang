@@ -1,0 +1,80 @@
+# Matrix Operations Demo
+# ======================
+# Demonstrates 2D array (matrix) manipulation in Quasar.
+#
+# Demonstrates:
+# - Nested list types [[int]]
+# - Matrix initialization
+# - Nested for loops for traversal
+# - Index access with chaining (matrix[i][j])
+# - Row and column operations
+
+# Create a 3x3 matrix
+let matrix: [[int]] = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+]
+
+print("=== Matrix Operations Demo ===")
+print("")
+
+# Display the matrix
+print("Original Matrix:")
+for row in matrix {
+    for cell in row {
+        print(cell, end=" ")
+    }
+    print("")
+}
+print("")
+
+# Calculate sum of all elements
+let total: int = 0
+for i in 0..len(matrix) {
+    for j in 0..len(matrix[i]) {
+        total = total + matrix[i][j]
+    }
+}
+print("Sum of all elements: {}", total)
+
+# Calculate row sums
+print("")
+print("Row sums:")
+for i in 0..len(matrix) {
+    let row_sum: int = 0
+    for j in 0..len(matrix[i]) {
+        row_sum = row_sum + matrix[i][j]
+    }
+    print("  Row {}: {}", i, row_sum)
+}
+
+# Calculate diagonal sum (main diagonal)
+let diagonal: int = 0
+for i in 0..len(matrix) {
+    diagonal = diagonal + matrix[i][i]
+}
+print("")
+print("Main diagonal sum: {}", diagonal)
+
+# Find max element
+let max: int = matrix[0][0]
+for row in matrix {
+    for cell in row {
+        if cell > max {
+            max = cell
+        }
+    }
+}
+print("Maximum element: {}", max)
+
+# Find min element  
+let min: int = matrix[0][0]
+for row in matrix {
+    for cell in row {
+        if cell < min {
+            min = cell
+        }
+    }
+}
+print("Minimum element: {}", min)
