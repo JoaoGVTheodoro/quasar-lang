@@ -1,0 +1,73 @@
+Metadata-Version: 2.4
+Name: quasar
+Version: 0.1.0
+Summary: Quasar programming language - compiled to Python
+Author: Quasar Team
+License: MIT
+Keywords: compiler,programming-language,python
+Classifier: Development Status :: 1 - Planning
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Software Development :: Compilers
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+
+# Quasar
+
+**Quasar** is a programming language that compiles to Python.
+
+**Status:** Phase 2 — AST Definition (Frozen)
+
+## Overview
+
+- **Extension:** `.qsr`
+- **Target:** Python 3.10+
+- **Paradigm:** Imperative, procedural
+- **Type system:** Static, explicit, closed
+
+## Philosophy
+
+- Explicit semantics — no implicit behavior
+- Zero magic — no automatic coercions
+- Predictability — same input, same behavior
+- Clarity over brevity
+
+## Project Structure
+
+```
+quasar/
+├── src/quasar/       # Compiler source code
+│   ├── lexer/        # Lexical analysis
+│   ├── parser/       # Syntactic analysis
+│   ├── ast/          # Abstract Syntax Tree
+│   ├── semantic/     # Semantic analysis
+│   ├── codegen/      # Code generation (Python)
+│   └── cli/          # Command-line interface
+├── tests/            # Test suite
+├── examples/         # Example .qsr files
+└── docs/spec/        # Language specification
+```
+
+## Development
+
+```bash
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate
+
+# Install in development mode
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+```
+
+## License
+
+MIT

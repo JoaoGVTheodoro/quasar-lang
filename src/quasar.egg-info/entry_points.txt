@@ -1,0 +1,2 @@
+[console_scripts]
+quasar = quasar.cli:main
