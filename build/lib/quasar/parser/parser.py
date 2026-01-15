@@ -521,18 +521,44 @@ class Parser:
     
     def _print_stmt(self) -> PrintStmt:
         """
-        Parse a print statement (Phase 5).
+        Parse a print statement (Phase 5 + 5.1).
         
-        print_stmt → "print" "(" expression ")"
+        print_stmt → "print" "(" expression ("," expression)* print_kwargs? ")"
+        print_kwargs → ("," print_kwarg)+
+        print_kwarg → ("sep" | "end") "=" expression
+        
+        For backward compatibility, single-argument print still works.
         """
         start = self._advance()  # consume 'print'
         self._consume(TokenType.LPAREN, "expected '(' after 'print'")
-        expr = self._expression()
-        end = self._consume(TokenType.RPAREN, "expected ')' after print argument")
+        
+        # Parse first argument (required)
+        arguments: list = [self._expression()]
+        sep_expr = None
+        end_expr = None
+        
+        # Parse additional arguments and keyword parameters
+        while self._match(TokenType.COMMA):
+            # Check for keyword parameters (sep= or end=)
+            if self._check(TokenType.SEP):
+                self._advance()  # consume 'sep'
+                self._consume(TokenType.EQUAL, "expected '=' after 'sep'")
+                sep_expr = self._expression()
+            elif self._check(TokenType.END):
+                self._advance()  # consume 'end'
+                self._consume(TokenType.EQUAL, "expected '=' after 'end'")
+                end_expr = self._expression()
+            else:
+                # Regular positional argument
+                arguments.append(self._expression())
+        
+        end_token = self._consume(TokenType.RPAREN, "expected ')' after print arguments")
         
         return PrintStmt(
-            expression=expr,
-            span=self._merge_spans(start.span, end.span),
+            arguments=arguments,
+            sep=sep_expr,
+            end=end_expr,
+            span=self._merge_spans(start.span, end_token.span),
         )
     
     def _block(self) -> Block:

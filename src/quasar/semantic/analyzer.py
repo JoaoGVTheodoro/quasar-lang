@@ -322,13 +322,14 @@ class SemanticAnalyzer:
     
     def _analyze_print_stmt(self, stmt: PrintStmt) -> None:
         """
-        Analyze print statement (Phase 5 + 5.1).
+        Analyze print statement (Phase 5 + 5.1 + 5.2).
         
         Checks:
         - All arguments must be valid expressions
         - All argument types must be primitive (int, float, bool, str)
         - sep must be str type if provided
         - end must be str type if provided
+        - Format string placeholder count must match argument count (Phase 5.2)
         
         Note: E0400 is reserved for future non-primitive types.
         Currently all types in Quasar are printable, so this check
@@ -337,6 +338,34 @@ class SemanticAnalyzer:
         # Validate all positional arguments
         for arg in stmt.arguments:
             self._get_expression_type(arg)
+        
+        # Validate format string placeholders (Phase 5.2)
+        # Only applies when: 1) more than one arg, 2) first arg is StringLiteral, 3) has {} placeholder
+        if len(stmt.arguments) > 1 and isinstance(stmt.arguments[0], StringLiteral):
+            format_str = stmt.arguments[0].value
+            # Count real {} placeholders (not escaped {{ or }})
+            # Replace escaped braces first, then count
+            temp = format_str.replace("{{", "").replace("}}", "")
+            placeholder_count = temp.count("{}")
+            
+            # Only enforce if there's at least one placeholder (format mode)
+            # No placeholder = normal mode (multi-arg print, no formatting)
+            if placeholder_count > 0:
+                arg_count = len(stmt.arguments) - 1  # Exclude format string itself
+                
+                if placeholder_count > arg_count:
+                    raise SemanticError(
+                        code="E0410",
+                        message=f"format string has {placeholder_count} placeholder(s) but only {arg_count} argument(s) provided",
+                        span=stmt.arguments[0].span,
+                    )
+                
+                if placeholder_count < arg_count:
+                    raise SemanticError(
+                        code="E0411",
+                        message=f"format string has {placeholder_count} placeholder(s) but {arg_count} argument(s) provided",
+                        span=stmt.arguments[0].span,
+                    )
         
         # Validate sep if provided (must be str)
         if stmt.sep is not None:

@@ -21,7 +21,7 @@ class TokenType(Enum):
     - Special: EOF and identifiers
     """
     
-    # === Keywords (12) ===
+    # === Keywords (14) ===
     LET = auto()        # let
     CONST = auto()      # const
     FN = auto()         # fn
@@ -34,6 +34,8 @@ class TokenType(Enum):
     TRUE = auto()       # true
     FALSE = auto()      # false
     PRINT = auto()      # print (Phase 5)
+    SEP = auto()        # sep (Phase 5.1 - print separator)
+    END = auto()        # end (Phase 5.1 - print terminator)
     
     # === Type Keywords (4) ===
     INT = auto()        # int
@@ -105,6 +107,8 @@ KEYWORDS: dict[str, TokenType] = {
     "true": TokenType.TRUE,
     "false": TokenType.FALSE,
     "print": TokenType.PRINT,  # Phase 5
+    "sep": TokenType.SEP,      # Phase 5.1
+    "end": TokenType.END,      # Phase 5.1
     # Type keywords
     "int": TokenType.INT,
     "float": TokenType.FLOAT,

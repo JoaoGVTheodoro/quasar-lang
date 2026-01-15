@@ -23,6 +23,7 @@ from quasar.ast import (
     BreakStmt,
     ContinueStmt,
     AssignStmt,
+    PrintStmt,
     # Expressions
     BinaryExpr,
     UnaryExpr,
@@ -120,6 +121,8 @@ class CodeGenerator:
             self._generate_break_stmt(decl)
         elif isinstance(decl, ContinueStmt):
             self._generate_continue_stmt(decl)
+        elif isinstance(decl, PrintStmt):
+            self._generate_print_stmt(decl)
         elif isinstance(decl, AssignStmt):
             self._generate_assign_stmt(decl)
         elif isinstance(decl, Block):
@@ -198,6 +201,54 @@ class CodeGenerator:
     def _generate_continue_stmt(self, stmt: ContinueStmt) -> None:
         """Generate: continue"""
         self._emit("continue")
+    
+    def _generate_print_stmt(self, stmt: PrintStmt) -> None:
+        """
+        Generate: print(args, sep=..., end=...) (Phase 5 + 5.1 + 5.2)
+        
+        Phase 5.2: Format mode detection
+        If args[0] is StringLiteral AND contains {} (not escaped) AND len(args) > 1:
+            Generate: print("template".format(arg1, arg2, ...), end=end_val)
+        Else:
+            Generate: print(arg0, arg1, ..., sep=sep_val, end=end_val)
+        """
+        # Check for format mode (Phase 5.2)
+        use_format_mode = False
+        if len(stmt.arguments) > 1 and isinstance(stmt.arguments[0], StringLiteral):
+            format_str = stmt.arguments[0].value
+            # Count real {} placeholders (not escaped {{ or }})
+            temp = format_str.replace("{{", "").replace("}}", "")
+            if temp.count("{}") > 0:
+                use_format_mode = True
+        
+        if use_format_mode:
+            # Format mode: print("template".format(args...), end=...)
+            template = self._generate_expression(stmt.arguments[0])
+            format_args = [self._generate_expression(arg) for arg in stmt.arguments[1:]]
+            format_call = f"{template}.format({', '.join(format_args)})"
+            
+            # Build print call (sep is ignored in format mode)
+            if stmt.end is not None:
+                end_val = self._generate_expression(stmt.end)
+                self._emit(f"print({format_call}, end={end_val})")
+            else:
+                self._emit(f"print({format_call})")
+        else:
+            # Normal mode: print(args, sep=..., end=...)
+            args = [self._generate_expression(arg) for arg in stmt.arguments]
+            parts = ", ".join(args)
+            
+            # Add sep if present
+            if stmt.sep is not None:
+                sep_val = self._generate_expression(stmt.sep)
+                parts += f", sep={sep_val}"
+            
+            # Add end if present
+            if stmt.end is not None:
+                end_val = self._generate_expression(stmt.end)
+                parts += f", end={end_val}"
+            
+            self._emit(f"print({parts})")
     
     def _generate_assign_stmt(self, stmt: AssignStmt) -> None:
         """Generate: target = expr"""

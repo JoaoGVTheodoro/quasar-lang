@@ -26,6 +26,7 @@ from quasar.ast import (
     BreakStmt,
     ContinueStmt,
     AssignStmt,
+    PrintStmt,
     # Expressions
     BinaryExpr,
     UnaryExpr,
@@ -95,6 +96,8 @@ class SemanticAnalyzer:
             self._analyze_break_stmt(decl)
         elif isinstance(decl, ContinueStmt):
             self._analyze_continue_stmt(decl)
+        elif isinstance(decl, PrintStmt):
+            self._analyze_print_stmt(decl)
         elif isinstance(decl, AssignStmt):
             self._analyze_assign_stmt(decl)
         elif isinstance(decl, Block):
@@ -316,6 +319,73 @@ class SemanticAnalyzer:
                 message="'continue' outside of loop",
                 span=stmt.span,
             )
+    
+    def _analyze_print_stmt(self, stmt: PrintStmt) -> None:
+        """
+        Analyze print statement (Phase 5 + 5.1 + 5.2).
+        
+        Checks:
+        - All arguments must be valid expressions
+        - All argument types must be primitive (int, float, bool, str)
+        - sep must be str type if provided
+        - end must be str type if provided
+        - Format string placeholder count must match argument count (Phase 5.2)
+        
+        Note: E0400 is reserved for future non-primitive types.
+        Currently all types in Quasar are printable, so this check
+        always passes for valid expressions.
+        """
+        # Validate all positional arguments
+        for arg in stmt.arguments:
+            self._get_expression_type(arg)
+        
+        # Validate format string placeholders (Phase 5.2)
+        # Only applies when: 1) more than one arg, 2) first arg is StringLiteral, 3) has {} placeholder
+        if len(stmt.arguments) > 1 and isinstance(stmt.arguments[0], StringLiteral):
+            format_str = stmt.arguments[0].value
+            # Count real {} placeholders (not escaped {{ or }})
+            # Replace escaped braces first, then count
+            temp = format_str.replace("{{", "").replace("}}", "")
+            placeholder_count = temp.count("{}")
+            
+            # Only enforce if there's at least one placeholder (format mode)
+            # No placeholder = normal mode (multi-arg print, no formatting)
+            if placeholder_count > 0:
+                arg_count = len(stmt.arguments) - 1  # Exclude format string itself
+                
+                if placeholder_count > arg_count:
+                    raise SemanticError(
+                        code="E0410",
+                        message=f"format string has {placeholder_count} placeholder(s) but only {arg_count} argument(s) provided",
+                        span=stmt.arguments[0].span,
+                    )
+                
+                if placeholder_count < arg_count:
+                    raise SemanticError(
+                        code="E0411",
+                        message=f"format string has {placeholder_count} placeholder(s) but {arg_count} argument(s) provided",
+                        span=stmt.arguments[0].span,
+                    )
+        
+        # Validate sep if provided (must be str)
+        if stmt.sep is not None:
+            sep_type = self._get_expression_type(stmt.sep)
+            if sep_type != TypeAnnotation.STR:
+                raise SemanticError(
+                    code="E0402",
+                    message=f"'sep' parameter must be type 'str', got '{sep_type.name.lower()}'",
+                    span=stmt.sep.span,
+                )
+        
+        # Validate end if provided (must be str)
+        if stmt.end is not None:
+            end_type = self._get_expression_type(stmt.end)
+            if end_type != TypeAnnotation.STR:
+                raise SemanticError(
+                    code="E0403",
+                    message=f"'end' parameter must be type 'str', got '{end_type.name.lower()}'",
+                    span=stmt.end.span,
+                )
     
     def _analyze_assign_stmt(self, stmt: AssignStmt) -> None:
         """

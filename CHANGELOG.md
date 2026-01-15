@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] — 2026-01-15
+
+### ✨ Added
+
+- **Formatted Output (String Interpolation)** — `{}` placeholders in print statements
+  - Basic interpolation: `print("Value: {}", x)`
+  - Multiple placeholders: `print("{} + {} = {}", a, b, c)`
+  - Works with all types: `int`, `float`, `bool`, `str`
+  - Escape sequences: `{{` → `{`, `}}` → `}`
+  - Integration with `end` parameter preserved
+  - 100% backward compatible with v1.2.0
+
+- **Semantic Validation**
+  - E0410: Format string has more placeholders than arguments
+  - E0411: Format string has fewer placeholders than arguments
+
+- **Code Generation**
+  - Format mode: `print("X={}".format(x))`
+  - Normal mode preserved for non-format cases
+
+### 📊 Test Summary
+
+| Component | v1.2.0  | Added   | v1.3.0  |
+| --------- | ------- | ------- | ------- |
+| Lexer     | 103     | —       | 103     |
+| Parser    | 105     | —       | 105     |
+| Semantic  | 74      | +26     | 100     |
+| CodeGen   | 95      | +23     | 118     |
+| CLI       | 21      | —       | 21      |
+| E2E       | 48      | +42     | 90      |
+| **Total** | **446** | **+91** | **537** |
+
+### 📁 New Files
+
+- `tests/semantic/test_print_fmt.py` — Format string semantic tests
+- `tests/codegen/test_print_fmt.py` — Format string codegen tests
+- `tests/e2e/test_integration_print_fmt.py` — Format string E2E tests
+- `docs/PHASE5_2_DESIGN.md` — Phase 5.2 design document (FROZEN)
+
+### 🔧 Modified Files
+
+- `src/quasar/semantic/analyzer.py` — Added format placeholder validation
+- `src/quasar/codegen/generator.py` — Added `.format()` code generation
+
+---
+
 ## [1.2.0] — 2025-01-15
 
 ### ✨ Added
