@@ -23,7 +23,6 @@ from quasar.ast import (
     BreakStmt,
     ContinueStmt,
     AssignStmt,
-    PrintStmt,
     # Expressions
     BinaryExpr,
     UnaryExpr,
@@ -121,8 +120,6 @@ class CodeGenerator:
             self._generate_break_stmt(decl)
         elif isinstance(decl, ContinueStmt):
             self._generate_continue_stmt(decl)
-        elif isinstance(decl, PrintStmt):
-            self._generate_print_stmt(decl)
         elif isinstance(decl, AssignStmt):
             self._generate_assign_stmt(decl)
         elif isinstance(decl, Block):
@@ -201,11 +198,6 @@ class CodeGenerator:
     def _generate_continue_stmt(self, stmt: ContinueStmt) -> None:
         """Generate: continue"""
         self._emit("continue")
-    
-    def _generate_print_stmt(self, stmt: PrintStmt) -> None:
-        """Generate: print(expr) (Phase 5)"""
-        expr = self._generate_expression(stmt.expression)
-        self._emit(f"print({expr})")
     
     def _generate_assign_stmt(self, stmt: AssignStmt) -> None:
         """Generate: target = expr"""

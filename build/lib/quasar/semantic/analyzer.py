@@ -26,7 +26,6 @@ from quasar.ast import (
     BreakStmt,
     ContinueStmt,
     AssignStmt,
-    PrintStmt,
     # Expressions
     BinaryExpr,
     UnaryExpr,
@@ -96,8 +95,6 @@ class SemanticAnalyzer:
             self._analyze_break_stmt(decl)
         elif isinstance(decl, ContinueStmt):
             self._analyze_continue_stmt(decl)
-        elif isinstance(decl, PrintStmt):
-            self._analyze_print_stmt(decl)
         elif isinstance(decl, AssignStmt):
             self._analyze_assign_stmt(decl)
         elif isinstance(decl, Block):
@@ -319,34 +316,6 @@ class SemanticAnalyzer:
                 message="'continue' outside of loop",
                 span=stmt.span,
             )
-    
-    def _analyze_print_stmt(self, stmt: PrintStmt) -> None:
-        """
-        Analyze print statement (Phase 5).
-        
-        Checks:
-        - Expression must be valid
-        - Expression type must be primitive (int, float, bool, str)
-        
-        Note: E0400 is reserved for future non-primitive types.
-        Currently all types in Quasar are printable, so this check
-        always passes for valid expressions.
-        """
-        # Validate and get expression type
-        # This will raise appropriate errors for invalid expressions
-        # (e.g., E0001 for undefined variables, E0100 for type mismatches)
-        expr_type = self._get_expression_type(stmt.expression)
-        
-        # All primitive types are printable
-        # Reserved check for future non-primitive types:
-        # PRINTABLE_TYPES = {TypeAnnotation.INT, TypeAnnotation.FLOAT, 
-        #                   TypeAnnotation.BOOL, TypeAnnotation.STR}
-        # if expr_type not in PRINTABLE_TYPES:
-        #     raise SemanticError(
-        #         code="E0400",
-        #         message=f"cannot print value of type '{expr_type.name.lower()}'",
-        #         span=stmt.expression.span,
-        #     )
     
     def _analyze_assign_stmt(self, stmt: AssignStmt) -> None:
         """
