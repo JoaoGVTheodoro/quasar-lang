@@ -170,6 +170,12 @@ class Parser:
         """Return current token without consuming it."""
         return self._tokens[self._current]
     
+    def _peek_next(self) -> Token:
+        """Return next token without consuming current one (lookahead)."""
+        if self._current + 1 >= len(self._tokens):
+            return self._tokens[-1]  # Return EOF
+        return self._tokens[self._current + 1]
+    
     def _previous(self) -> Token:
         """Return the most recently consumed token."""
         return self._tokens[self._current - 1]
@@ -184,11 +190,11 @@ class Parser:
             self._current += 1
         return self._previous()
     
-    def _check(self, token_type: TokenType) -> bool:
-        """Check if current token is of given type."""
+    def _check(self, *types: TokenType) -> bool:
+        """Check if current token is of any given type."""
         if self._is_at_end():
             return False
-        return self._peek().type == token_type
+        return self._peek().type in types
     
     def _match(self, *types: TokenType) -> bool:
         """
@@ -990,6 +996,17 @@ class Parser:
                 name=token.lexeme,
                 span=token.span,
             )
+        
+        # Type keywords as function calls (Phase 7.1)
+        # Allow int(), float(), str(), bool() as casting functions
+        if self._check(TokenType.INT, TokenType.FLOAT, TokenType.STR, TokenType.BOOL):
+            if self._peek_next().type == TokenType.LPAREN:
+                # Consume the type keyword as an identifier
+                token = self._advance()
+                return Identifier(
+                    name=token.lexeme,
+                    span=token.span,
+                )
         
         # Grouped expression
         if self._match(TokenType.LPAREN):

@@ -60,7 +60,7 @@ class TestIfStmt:
         }
         """
         result = generate(source)
-        expected = "def isPositive(n):\n    if n > 0:\n        return True\n    return False"
+        expected = "def isPositive(n):\n    if (n > 0):\n        return True\n    return False"
         assert result == expected
 
 
@@ -119,7 +119,7 @@ class TestReturnStmt:
     def test_return_expression(self):
         source = "fn calc(x: int) -> int { return x + 1 }"
         result = generate(source)
-        expected = "def calc(x):\n    return x + 1"
+        expected = "def calc(x):\n    return (x + 1)"
         assert result == expected
 
 
@@ -147,7 +147,7 @@ class TestAssignStmt:
         }
         """
         result = generate(source)
-        expected = "def increment():\n    x = 1\n    x = x + 1\n    return x"
+        expected = "def increment():\n    x = 1\n    x = (x + 1)\n    return x"
         assert result == expected
 
 

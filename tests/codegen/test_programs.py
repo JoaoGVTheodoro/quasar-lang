@@ -65,7 +65,7 @@ class TestComplexPrograms:
         }
         """
         result = generate(source)
-        expected = "def abs(x):\n    if x < 0:\n        return -x\n    return x"
+        expected = "def abs(x):\n    if (x < 0):\n        return -x\n    return x"
         assert result == expected
     
     def test_function_with_loop(self):
@@ -79,7 +79,7 @@ class TestComplexPrograms:
         }
         """
         result = generate(source)
-        expected = "def countdown(n):\n    i = n\n    while i > 0:\n        i = i - 1\n    return i"
+        expected = "def countdown(n):\n    i = n\n    while (i > 0):\n        i = (i - 1)\n    return i"
         assert result == expected
     
     def test_function_calling_function(self):
@@ -89,7 +89,7 @@ class TestComplexPrograms:
         """
         result = generate(source)
         assert "def helper(x):" in result
-        assert "return x + 1" in result
+        assert "return (x + 1)" in result
         assert "def main():" in result
         assert "return helper(41)" in result
     
@@ -103,7 +103,7 @@ class TestComplexPrograms:
         result = generate(source)
         assert "LIMIT = 100" in result
         assert "def check(x):" in result
-        assert "return x < LIMIT" in result
+        assert "return (x < LIMIT)" in result
 
 
 class TestEdgeCases:
@@ -135,7 +135,7 @@ class TestEdgeCases:
     def test_complex_expression(self):
         source = "let x: bool = 1 + 2 * 3 > 5 && true"
         result = generate(source)
-        assert result == "x = 1 + 2 * 3 > 5 and True"
+        assert result == "x = (((1 + (2 * 3)) > 5) and True)"
     
     def test_string_with_escape(self):
         source = r'let x: str = "hello\nworld"'

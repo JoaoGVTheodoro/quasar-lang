@@ -310,11 +310,15 @@ class CodeGenerator:
             return ""
     
     def _generate_binary_expr(self, expr: BinaryExpr) -> str:
-        """Generate binary expression."""
+        """Generate binary expression with defensive parentheses.
+        
+        Always wraps result in parentheses to preserve operator precedence.
+        Python handles redundant parentheses gracefully.
+        """
         left = self._generate_expression(expr.left)
         right = self._generate_expression(expr.right)
         op = self._binary_op_to_python(expr.operator)
-        return f"{left} {op} {right}"
+        return f"({left} {op} {right})"
     
     def _generate_unary_expr(self, expr: UnaryExpr) -> str:
         """Generate unary expression."""
@@ -330,10 +334,25 @@ class CodeGenerator:
     def _generate_call_expr(self, expr: CallExpr) -> str:
         """Generate function call.
         
-        Intercepts built-in functions (Phase 6.2):
+        Intercepts built-in functions (Phase 6.2, Phase 7.0, Phase 7.1):
         - len(x) → len(x) (Python native)
         - push(x, v) → x.append(v)
+        - input() / input(prompt) → input() / input(prompt)
+        - int/float/str/bool(x) → int/float/str/bool(x)
         """
+        # Built-in: Type casting functions (Phase 7.1)
+        if expr.callee in {"int", "float", "str", "bool"}:
+            arg = self._generate_expression(expr.arguments[0])
+            return f"{expr.callee}({arg})"
+        
+        # Built-in: input() → input() (Phase 7.0)
+        if expr.callee == "input":
+            if len(expr.arguments) == 0:
+                return "input()"
+            else:
+                prompt = self._generate_expression(expr.arguments[0])
+                return f"input({prompt})"
+        
         # Built-in: len(x) → len(x)
         if expr.callee == "len":
             arg = self._generate_expression(expr.arguments[0])

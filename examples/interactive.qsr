@@ -1,0 +1,33 @@
+
+print("--- Quasar Interactive Profile ---")
+
+# 1. String Input
+print("What is your name? ", end="")
+let name: str = input()
+
+# 2. Int Input & Cast
+print("What is your age? ", end="")
+let age_str: str = input()
+let age: int = int(age_str)
+
+# 3. Logic
+let current_year: int = 2026
+let birth_year: int = current_year - age
+
+# 4. Bool Input & Cast
+print("Are you a programmer (true/false)? ", end="")
+let is_dev_str: str = input()
+let is_dev: bool = bool(is_dev_str)
+
+# 5. Formatted Output
+print("\n=== Profile Summary ===")
+print("Name: {}", name)
+print("Age: {}", age)
+print("Birth Year: ~{}", birth_year)
+print("Programmer: {}", is_dev)
+
+if is_dev {
+    print("Status: Deploying to Production! multispace")
+} else {
+    print("Status: User Mode")
+}

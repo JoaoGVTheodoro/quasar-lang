@@ -90,7 +90,7 @@ class TestCompileSource:
 }"""
         result = compile_source(source)
         assert "def add(a, b):" in result
-        assert "return a + b" in result
+        assert "return (a + b)" in result
     
     def test_compile_invalid_syntax(self):
         """Should exit on syntax error."""

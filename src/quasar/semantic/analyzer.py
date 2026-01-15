@@ -838,11 +838,15 @@ class SemanticAnalyzer:
         
         Built-in functions (len, push) are intercepted here.
         """
-        # Intercept built-in functions (Phase 6.2)
+        # Intercept built-in functions (Phase 6.2, Phase 7.0, Phase 7.1)
         if expr.callee == "len":
             return self._check_builtin_len(expr)
         if expr.callee == "push":
             return self._check_builtin_push(expr)
+        if expr.callee == "input":
+            return self._check_builtin_input(expr)
+        if expr.callee in {"int", "float", "str", "bool"}:
+            return self._check_builtin_cast(expr)
         
         symbol = self._symbols.lookup(expr.callee)
         if symbol is None:
@@ -927,3 +931,69 @@ class SemanticAnalyzer:
             )
         
         return VOID
+    
+    def _check_builtin_input(self, expr: CallExpr) -> QuasarType:
+        """
+        Validate built-in input() function (Phase 7.0).
+        
+        Rules:
+        - Must have 0 or 1 argument
+        - If 1 argument, must be a string (prompt)
+        
+        Returns: STR
+        Errors:
+        - E0600: Too many arguments
+        - E0601: Argument must be string
+        """
+        # Check argument count (max 1)
+        if len(expr.arguments) > 1:
+            raise SemanticError(
+                code="E0600",
+                message=f"input() takes at most 1 argument ({len(expr.arguments)} given)",
+                span=expr.span,
+            )
+        
+        # If there's an argument, it must be a string
+        if len(expr.arguments) == 1:
+            arg_type = self._get_expression_type(expr.arguments[0])
+            if arg_type != STR:
+                raise SemanticError(
+                    code="E0601",
+                    message=f"input() prompt must be str, got '{arg_type}'",
+                    span=expr.arguments[0].span,
+                )
+        
+        return STR
+    
+    def _check_builtin_cast(self, expr: CallExpr) -> QuasarType:
+        """
+        Validate type casting functions (Phase 7.1).
+        
+        Functions: int(), float(), str(), bool()
+        
+        Rules:
+        - Must have exactly 1 argument
+        - Argument can be any primitive type (permissive)
+        
+        Returns: The target type (INT, FLOAT, STR, BOOL)
+        Errors:
+        - E0602: Wrong argument count
+        """
+        # Check argument count (exactly 1)
+        if len(expr.arguments) != 1:
+            raise SemanticError(
+                code="E0602",
+                message=f"{expr.callee}() requires exactly 1 argument ({len(expr.arguments)} given)",
+                span=expr.span,
+            )
+        
+        # Validate the argument exists and is a valid expression
+        self._get_expression_type(expr.arguments[0])
+        
+        # Return the target type based on the function name
+        return {
+            "int": INT,
+            "float": FLOAT,
+            "str": STR,
+            "bool": BOOL,
+        }[expr.callee]

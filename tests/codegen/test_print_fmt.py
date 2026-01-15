@@ -170,7 +170,7 @@ class TestFormatWithExpressions:
         """Format with arithmetic expression."""
         source = 'print("Sum: {}", 1 + 2)'
         code = generate(source)
-        assert 'print("Sum: {}".format(1 + 2))' in code
+        assert 'print("Sum: {}".format((1 + 2)))' in code
     
     def test_codegen_fmt_with_function_call(self):
         """Format with function call."""

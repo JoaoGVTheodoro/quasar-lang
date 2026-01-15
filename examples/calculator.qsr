@@ -1,0 +1,25 @@
+
+print("--- Quasar Calculator (Float & Precedence) ---")
+
+# 1. Inputs
+print("Enter first number: ", end="")
+let a_str: str = input()
+let a: float = float(a_str)
+
+print("Enter second number: ", end="")
+let b_str: str = input()
+let b: float = float(b_str)
+
+# 2. Basic Arithmetic
+print("\nResults:")
+print("{} + {} = {}", a, b, a + b)
+print("{} - {} = {}", a, b, a - b)
+print("{} * {} = {}", a, b, a * b)
+print("{} / {} = {}", a, b, a / b)
+
+# 3. Precedence Check (Hotfix Verification)
+# Formula: (a + b) * 2.0
+# If precedence bug exists: a + b * 2.0 -> a + (b * 2.0)
+let expected: float = (a + b) * 2.0
+print("\nPrecedence Check [(a + b) * 2]:")
+print("Result: {}", expected)

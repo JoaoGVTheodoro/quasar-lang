@@ -219,7 +219,7 @@ class TestCodeGen:
     def test_codegen_push_expression(self):
         """push() with expression value."""
         code = generate("let nums: [int] = [1]\npush(nums, 1 + 2)")
-        assert "nums.append(1 + 2)" in code
+        assert "nums.append((1 + 2))" in code
 
 
 # =============================================================================

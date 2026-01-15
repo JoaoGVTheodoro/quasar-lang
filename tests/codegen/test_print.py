@@ -60,7 +60,7 @@ class TestPrintStatementCodeGen:
     def test_codegen_print_expression(self):
         """print(2 + 3) → print(2 + 3)"""
         code = generate("print(2 + 3)")
-        assert code == "print(2 + 3)"
+        assert code == "print((2 + 3))"
     
     def test_codegen_print_function_call(self):
         """print(f(5)) → print(f(5))"""
@@ -146,7 +146,7 @@ class TestPrintMultipleArgsCodeGen:
     def test_codegen_print_expressions(self):
         """print with expressions"""
         code = generate("print(1 + 2, 3 * 4)")
-        assert code == "print(1 + 2, 3 * 4)"
+        assert code == "print((1 + 2), (3 * 4))"
 
 
 class TestPrintSepEndCodeGen:

@@ -341,7 +341,7 @@ class TestCodeGenLists:
     def test_codegen_list_with_expressions(self):
         """let x: [int] = [1+2, 3*4] -> x = [1 + 2, 3 * 4]"""
         code = generate("let x: [int] = [1 + 2, 3 * 4]")
-        assert "[1 + 2, 3 * 4]" in code
+        assert "[(1 + 2), (3 * 4)]" in code
 
 
 # =============================================================================

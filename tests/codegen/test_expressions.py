@@ -26,32 +26,32 @@ class TestArithmeticOperators:
     def test_addition(self):
         source = "let x: int = 1 + 2"
         result = generate(source)
-        assert result == "x = 1 + 2"
+        assert result == "x = (1 + 2)"
     
     def test_subtraction(self):
         source = "let x: int = 5 - 3"
         result = generate(source)
-        assert result == "x = 5 - 3"
+        assert result == "x = (5 - 3)"
     
     def test_multiplication(self):
         source = "let x: int = 4 * 2"
         result = generate(source)
-        assert result == "x = 4 * 2"
+        assert result == "x = (4 * 2)"
     
     def test_division(self):
         source = "let x: int = 10 / 2"
         result = generate(source)
-        assert result == "x = 10 / 2"
+        assert result == "x = (10 / 2)"
     
     def test_modulo(self):
         source = "let x: int = 10 % 3"
         result = generate(source)
-        assert result == "x = 10 % 3"
+        assert result == "x = (10 % 3)"
     
     def test_string_concatenation(self):
         source = 'let x: str = "hello" + "world"'
         result = generate(source)
-        assert result == 'x = "hello" + "world"'
+        assert result == 'x = ("hello" + "world")'
 
 
 class TestComparisonOperators:
@@ -60,32 +60,32 @@ class TestComparisonOperators:
     def test_equal(self):
         source = "let x: bool = 1 == 1"
         result = generate(source)
-        assert result == "x = 1 == 1"
+        assert result == "x = (1 == 1)"
     
     def test_not_equal(self):
         source = "let x: bool = 1 != 2"
         result = generate(source)
-        assert result == "x = 1 != 2"
+        assert result == "x = (1 != 2)"
     
     def test_less_than(self):
         source = "let x: bool = 1 < 2"
         result = generate(source)
-        assert result == "x = 1 < 2"
+        assert result == "x = (1 < 2)"
     
     def test_greater_than(self):
         source = "let x: bool = 2 > 1"
         result = generate(source)
-        assert result == "x = 2 > 1"
+        assert result == "x = (2 > 1)"
     
     def test_less_equal(self):
         source = "let x: bool = 1 <= 2"
         result = generate(source)
-        assert result == "x = 1 <= 2"
+        assert result == "x = (1 <= 2)"
     
     def test_greater_equal(self):
         source = "let x: bool = 2 >= 1"
         result = generate(source)
-        assert result == "x = 2 >= 1"
+        assert result == "x = (2 >= 1)"
 
 
 class TestLogicalOperators:
@@ -94,12 +94,12 @@ class TestLogicalOperators:
     def test_and(self):
         source = "let x: bool = true && false"
         result = generate(source)
-        assert result == "x = True and False"
+        assert result == "x = (True and False)"
     
     def test_or(self):
         source = "let x: bool = true || false"
         result = generate(source)
-        assert result == "x = True or False"
+        assert result == "x = (True or False)"
     
     def test_not(self):
         source = "let x: bool = !true"
@@ -168,7 +168,7 @@ class TestIdentifier:
         }
         """
         result = generate(source)
-        assert "return a + b" in result
+        assert "return (a + b)" in result
 
 
 class TestPrecedence:
@@ -177,10 +177,10 @@ class TestPrecedence:
     def test_precedence_mul_add(self):
         source = "let x: int = 1 + 2 * 3"
         result = generate(source)
-        # Parser should have handled precedence, codegen preserves structure
-        assert result == "x = 1 + 2 * 3"
+        # Parser handles precedence, codegen adds defensive parens
+        assert result == "x = (1 + (2 * 3))"
     
     def test_precedence_comparison_logical(self):
         source = "let x: bool = 1 < 2 && 3 > 1"
         result = generate(source)
-        assert result == "x = 1 < 2 and 3 > 1"
+        assert result == "x = ((1 < 2) and (3 > 1))"
