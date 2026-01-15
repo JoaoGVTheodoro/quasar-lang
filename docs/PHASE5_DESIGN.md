@@ -1,8 +1,9 @@
 # Phase 5 — Builtin Functions: Design Document
 
-**Status:** DRAFT  
-**Version:** 0.1.0  
-**Date:** 2026-01-15  
+**Status:** ✅ FROZEN  
+**Version:** 1.0.0  
+**Date:** 2025-01-15  
+**Completed:** 2025-01-15  
 **Author:** Quasar Team  
 
 ---
