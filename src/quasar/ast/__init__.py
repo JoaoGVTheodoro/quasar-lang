@@ -99,6 +99,7 @@ from quasar.ast.expressions import (
     MemberAccessExpr,
     DictEntry,
     DictLiteral,
+    MethodCallExpr,
 )
 
 # Statements
@@ -161,6 +162,7 @@ __all__ = [
     "MemberAccessExpr",
     "DictEntry",
     "DictLiteral",
+    "MethodCallExpr",
     # Statements
     "Block",
     "ExpressionStmt",

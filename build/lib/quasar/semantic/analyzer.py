@@ -49,11 +49,14 @@ from quasar.ast import (
     FieldInit,
     StructInitExpr,
     MemberAccessExpr,
+    DictEntry,
+    DictLiteral,
     # Types and operators
     TypeAnnotation,
     QuasarType,
     PrimitiveType,
     ListType,
+    DictType,
     INT,
     FLOAT,
     BOOL,
@@ -61,6 +64,8 @@ from quasar.ast import (
     VOID,
     ANY,
     is_list,
+    is_dict,
+    is_hashable,
     BinaryOp,
     UnaryOp,
     Span,
@@ -84,7 +89,9 @@ class SemanticAnalyzer:
         """
         Check if actual type is compatible with expected type.
         
-        Special case: empty list [void] is compatible with any list type [T].
+        Special cases:
+        - Empty list [void] is compatible with any list type [T]
+        - Empty dict Dict[void, void] is compatible with any dict type Dict[K, V]
         """
         if expected == actual:
             return True
@@ -94,6 +101,10 @@ class SemanticAnalyzer:
         # Empty list ([void]) is compatible with any list type
         if isinstance(expected, ListType) and isinstance(actual, ListType):
             if actual.element_type == VOID:
+                return True
+        # Empty dict (Dict[void, void]) is compatible with any dict type
+        if isinstance(expected, DictType) and isinstance(actual, DictType):
+            if actual.key_type == VOID and actual.value_type == VOID:
                 return True
         return False
     
@@ -542,12 +553,18 @@ class SemanticAnalyzer:
     
     def _analyze_index_assign_stmt(self, stmt: IndexAssignStmt) -> None:
         """
-        Analyze index assignment statement (Phase 6.1).
+        Analyze index assignment statement (Phase 6.1, Phase 10.1).
+        
+        Supports both List and Dict assignment:
+        - List: index must be int, value must match element_type
+        - Dict: index must match key_type, value must match value_type
         
         Checks:
-        - E0501: Index must be int type
-        - E0502: Target must be a list type
-        - E0503: Value type must match element type
+        - E0501: List index must be int type
+        - E0502: Target must be indexable (list or dict)
+        - E0503: List value type must match element type
+        - E1003: Dict key type mismatch
+        - E1004: Dict value type mismatch
         """
         # Get the index expression (should be an IndexExpr)
         index_expr = stmt.target
@@ -558,17 +575,49 @@ class SemanticAnalyzer:
                 span=stmt.target.span,
             )
         
-        # Get the type of the expression and validate (E0501, E0502)
-        element_type = self._get_index_expr_type(index_expr)
-        
-        # Check value type matches element type (E0503)
+        # Get target collection type
+        target_type = self._get_expression_type(index_expr.target)
+        index_type = self._get_expression_type(index_expr.index)
         value_type = self._get_expression_type(stmt.value)
-        if value_type != element_type:
-            raise SemanticError(
-                code="E0503",
-                message=f"cannot assign '{value_type}' to list element of type '{element_type}'",
-                span=stmt.value.span,
-            )
+        
+        # List assignment
+        if isinstance(target_type, ListType):
+            if index_type != INT:
+                raise SemanticError(
+                    code="E0501",
+                    message=f"list index must be 'int', got '{index_type}'",
+                    span=index_expr.index.span,
+                )
+            if value_type != target_type.element_type:
+                raise SemanticError(
+                    code="E0503",
+                    message=f"cannot assign '{value_type}' to list element of type '{target_type.element_type}'",
+                    span=stmt.value.span,
+                )
+            return
+        
+        # Dict assignment (Phase 10.1)
+        if isinstance(target_type, DictType):
+            if index_type != target_type.key_type:
+                raise SemanticError(
+                    code="E1003",
+                    message=f"dict key type mismatch: expected '{target_type.key_type}', got '{index_type}'",
+                    span=index_expr.index.span,
+                )
+            if value_type != target_type.value_type:
+                raise SemanticError(
+                    code="E1004",
+                    message=f"dict value type mismatch: expected '{target_type.value_type}', got '{value_type}'",
+                    span=stmt.value.span,
+                )
+            return
+        
+        # Not indexable
+        raise SemanticError(
+            code="E0502",
+            message=f"cannot index into type '{target_type}'",
+            span=index_expr.target.span,
+        )
     
     # =========================================================================
     # Expression Type Analysis
@@ -626,6 +675,8 @@ class SemanticAnalyzer:
             return self._get_struct_init_expr_type(expr)
         elif isinstance(expr, MemberAccessExpr):
             return self._get_member_access_expr_type(expr)
+        elif isinstance(expr, DictLiteral):
+            return self._get_dict_literal_type(expr)
         else:
             # Should not reach here with valid AST
             raise SemanticError(
@@ -664,36 +715,110 @@ class SemanticAnalyzer:
         
         return ListType(first_type)
     
-    def _get_index_expr_type(self, expr: IndexExpr) -> QuasarType:
+    def _get_dict_literal_type(self, expr: DictLiteral) -> DictType:
         """
-        Get the type of an index expression (Phase 6.1).
+        Get the type of a dictionary literal expression (Phase 10.0).
         
         Checks:
-        - E0501: Index must be int type
-        - E0502: Target must be a list type
+        - E1000: All keys must have the same type (homogeneous keys)
+        - E1001: All values must have the same type (homogeneous values)
+        - E1002: Keys must be hashable (int, str, bool - not list or dict)
         
-        Returns: The element type of the list
+        Note: Empty dicts require type annotation from context.
         """
-        # Check index is int (E0501)
-        index_type = self._get_expression_type(expr.index)
-        if index_type != INT:
+        if len(expr.entries) == 0:
+            # Empty dict - type determined by annotation context
+            # This will be resolved in _analyze_var_decl/_analyze_const_decl
+            # For now, return a placeholder that will be matched against declared type
+            return DictType(VOID, VOID)  # Placeholder for empty dict
+        
+        # Get type of first entry
+        first_key_type = self._get_expression_type(expr.entries[0].key)
+        first_value_type = self._get_expression_type(expr.entries[0].value)
+        
+        # Check first key is hashable (E1002)
+        if not is_hashable(first_key_type):
             raise SemanticError(
-                code="E0501",
-                message=f"list index must be 'int', got '{index_type}'",
-                span=expr.index.span,
+                code="E1002",
+                message=f"dict key must be hashable (int, str, or bool), got '{first_key_type}'",
+                span=expr.entries[0].key.span,
             )
         
-        # Check target is a list (E0502)
+        # Check all other entries have the same types
+        for i, entry in enumerate(expr.entries[1:], start=1):
+            key_type = self._get_expression_type(entry.key)
+            value_type = self._get_expression_type(entry.value)
+            
+            # Check key is hashable (E1002)
+            if not is_hashable(key_type):
+                raise SemanticError(
+                    code="E1002",
+                    message=f"dict key must be hashable (int, str, or bool), got '{key_type}'",
+                    span=entry.key.span,
+                )
+            
+            # Check key type matches (E1000)
+            if key_type != first_key_type:
+                raise SemanticError(
+                    code="E1000",
+                    message=f"heterogeneous dict keys: entry {i} has key type '{key_type}' but expected '{first_key_type}'",
+                    span=entry.key.span,
+                )
+            
+            # Check value type matches (E1001)
+            if value_type != first_value_type:
+                raise SemanticError(
+                    code="E1001",
+                    message=f"heterogeneous dict values: entry {i} has value type '{value_type}' but expected '{first_value_type}'",
+                    span=entry.value.span,
+                )
+        
+        return DictType(first_key_type, first_value_type)
+    
+    def _get_index_expr_type(self, expr: IndexExpr) -> QuasarType:
+        """
+        Get the type of an index expression (Phase 6.1, Phase 10.1).
+        
+        Supports both List and Dict indexing:
+        - List: index must be int, returns element_type
+        - Dict: index must match key_type, returns value_type
+        
+        Checks:
+        - E0501: List index must be int type
+        - E0502: Target must be indexable (list or dict)
+        - E1003: Dict key type mismatch
+        
+        Returns: The element type (list) or value type (dict)
+        """
         target_type = self._get_expression_type(expr.target)
-        if not isinstance(target_type, ListType):
-            raise SemanticError(
-                code="E0502",
-                message=f"cannot index into non-list type '{target_type}'",
-                span=expr.target.span,
-            )
+        index_type = self._get_expression_type(expr.index)
         
-        # Return the element type
-        return target_type.element_type
+        # List indexing
+        if isinstance(target_type, ListType):
+            if index_type != INT:
+                raise SemanticError(
+                    code="E0501",
+                    message=f"list index must be 'int', got '{index_type}'",
+                    span=expr.index.span,
+                )
+            return target_type.element_type
+        
+        # Dict indexing (Phase 10.1)
+        if isinstance(target_type, DictType):
+            if index_type != target_type.key_type:
+                raise SemanticError(
+                    code="E1003",
+                    message=f"dict key type mismatch: expected '{target_type.key_type}', got '{index_type}'",
+                    span=expr.index.span,
+                )
+            return target_type.value_type
+        
+        # Not indexable
+        raise SemanticError(
+            code="E0502",
+            message=f"cannot index into type '{target_type}'",
+            span=expr.target.span,
+        )
     
     def _get_identifier_type(self, expr: Identifier) -> QuasarType:
         """
@@ -870,7 +995,7 @@ class SemanticAnalyzer:
         Built-in functions (len, push) are intercepted here.
         Module functions (math.sqrt) return ANY type.
         """
-        # Intercept built-in functions (Phase 6.2, Phase 7.0, Phase 7.1)
+        # Intercept built-in functions (Phase 6.2, Phase 7.0, Phase 7.1, Phase 10.2)
         if expr.callee == "len":
             return self._check_builtin_len(expr)
         if expr.callee == "push":
@@ -879,6 +1004,10 @@ class SemanticAnalyzer:
             return self._check_builtin_input(expr)
         if expr.callee in {"int", "float", "str", "bool"}:
             return self._check_builtin_cast(expr)
+        if expr.callee == "keys":
+            return self._check_builtin_keys(expr)
+        if expr.callee == "values":
+            return self._check_builtin_values(expr)
         
         # Check for module function call (Phase 9)
         # Format: module.function (dotted name)
@@ -907,14 +1036,14 @@ class SemanticAnalyzer:
     
     def _check_builtin_len(self, expr: CallExpr) -> QuasarType:
         """
-        Validate built-in len(list) function (Phase 6.2).
+        Validate built-in len() function (Phase 6.2, Phase 10.2).
         
         Rules:
         - Must have exactly 1 argument
-        - Argument must be a list type
+        - Argument must be a list or dict type
         
         Returns: INT
-        Errors: E0507 if argument is not a list
+        Errors: E0507 if argument is not a list or dict
         """
         # Check argument count
         if len(expr.arguments) != 1:
@@ -924,16 +1053,76 @@ class SemanticAnalyzer:
                 span=expr.span,
             )
         
-        # Check argument is a list
+        # Check argument is a list or dict
         arg_type = self._get_expression_type(expr.arguments[0])
-        if not isinstance(arg_type, ListType):
+        if not isinstance(arg_type, (ListType, DictType)):
             raise SemanticError(
                 code="E0507",
-                message=f"len() argument must be a list, got '{arg_type}'",
+                message=f"len() argument must be a list or dict, got '{arg_type}'",
                 span=expr.arguments[0].span,
             )
         
         return INT
+    
+    def _check_builtin_keys(self, expr: CallExpr) -> QuasarType:
+        """
+        Validate built-in keys(dict) function (Phase 10.2).
+        
+        Rules:
+        - Must have exactly 1 argument
+        - Argument must be a dict type
+        
+        Returns: ListType(key_type)
+        Errors: E1005 if argument is not a dict
+        """
+        # Check argument count
+        if len(expr.arguments) != 1:
+            raise SemanticError(
+                code="E1005",
+                message=f"keys() takes exactly 1 argument ({len(expr.arguments)} given)",
+                span=expr.span,
+            )
+        
+        # Check argument is a dict
+        arg_type = self._get_expression_type(expr.arguments[0])
+        if not isinstance(arg_type, DictType):
+            raise SemanticError(
+                code="E1005",
+                message=f"keys() argument must be a dict, got '{arg_type}'",
+                span=expr.arguments[0].span,
+            )
+        
+        return ListType(arg_type.key_type)
+    
+    def _check_builtin_values(self, expr: CallExpr) -> QuasarType:
+        """
+        Validate built-in values(dict) function (Phase 10.2).
+        
+        Rules:
+        - Must have exactly 1 argument
+        - Argument must be a dict type
+        
+        Returns: ListType(value_type)
+        Errors: E1006 if argument is not a dict
+        """
+        # Check argument count
+        if len(expr.arguments) != 1:
+            raise SemanticError(
+                code="E1006",
+                message=f"values() takes exactly 1 argument ({len(expr.arguments)} given)",
+                span=expr.span,
+            )
+        
+        # Check argument is a dict
+        arg_type = self._get_expression_type(expr.arguments[0])
+        if not isinstance(arg_type, DictType):
+            raise SemanticError(
+                code="E1006",
+                message=f"values() argument must be a dict, got '{arg_type}'",
+                span=expr.arguments[0].span,
+            )
+        
+        return ListType(arg_type.value_type)
     
     def _check_builtin_push(self, expr: CallExpr) -> QuasarType:
         """

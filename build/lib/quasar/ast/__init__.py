@@ -61,6 +61,7 @@ from quasar.ast.types import (
     QuasarType,
     PrimitiveType,
     ListType,
+    DictType,
     INT,
     FLOAT,
     BOOL,
@@ -70,6 +71,8 @@ from quasar.ast.types import (
     list_of,
     is_primitive,
     is_list,
+    is_dict,
+    is_hashable,
 )
 
 # Operators
@@ -94,6 +97,8 @@ from quasar.ast.expressions import (
     FieldInit,
     StructInitExpr,
     MemberAccessExpr,
+    DictEntry,
+    DictLiteral,
 )
 
 # Statements
@@ -154,6 +159,8 @@ __all__ = [
     "FieldInit",
     "StructInitExpr",
     "MemberAccessExpr",
+    "DictEntry",
+    "DictLiteral",
     # Statements
     "Block",
     "ExpressionStmt",
