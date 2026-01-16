@@ -10,7 +10,7 @@ let h: float = math.sqrt(16.0)
 print("Result: {}", h)
 ```
 
-**Status:** v1.9.1 "Prism Hardened" — Phase 12 Complete + Core Hardening ✅ (1119 tests)
+**Status:** v1.10.1 "Comet Hardened" — Phase 13 Complete + Hardening ✅ (1165 tests)
 
 ## ✨ Features
 
@@ -167,19 +167,19 @@ pytest tests/ -v
 
 ## 🗺️ Version History
 
-| Version              | Features                 |
-| -------------------- | ------------------------ |
-| v1.0.0 - big bang    | Core language            |
-| v1.1.0 - void space  | Print statement          |
-| v1.2.0 - dark matter | Lists, ranges, for loops |
-| v1.3.0 - nebula      | List builtins            |
-| v1.4.0 - galaxy      | Input, type casting      |
-| v1.5.0 - light speed | Structs                  |
-| v1.6.0 - entropy     | Modules & Imports        |
-| v1.7.0 - supernova   | Dictionaries             |
-| v1.8.0 - pulsar      | Native Methods           |
-| v1.9.0 - prism       | Enums                    |
-| **v1.9.1 - hardened**| **E0303/E0304 hardening**|
+| Version               | Features                  |
+| --------------------- | ------------------------- |
+| v1.0.0 - big bang     | Core language             |
+| v1.1.0 - void space   | Print statement           |
+| v1.2.0 - dark matter  | Lists, ranges, for loops  |
+| v1.3.0 - nebula       | List builtins             |
+| v1.4.0 - galaxy       | Input, type casting       |
+| v1.5.0 - light speed  | Structs                   |
+| v1.6.0 - entropy      | Modules & Imports         |
+| v1.7.0 - supernova    | Dictionaries              |
+| v1.8.0 - pulsar       | Native Methods            |
+| v1.9.0 - prism        | Enums                     |
+| **v1.9.1 - hardened** | **E0303/E0304 hardening** |
 
 ## 📄 License
 

@@ -7,43 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.10.0] — 2026-01-16 — "Script"
 
-### ✨ Added
-- **File System API** (`File` static object)
-  - Operations: `read`, `write`, `append`, `exists`, `delete`
-  - **Safety:** Enforced UTF-8 encoding on all operations
-- **Environment API** (`Env` static object)
-  - Operations: `get`, `set`, `args`, `cwd`
-  - **Safety:** `Env.get` requires default value
-  - **Safety:** `Env.args()` returns a defensive copy of arguments
+## [1.10.1] — 2026-01-16 — "Comet Hardened"
 
-### � Test Summary
-| Component | v1.9.1   | Added   | v1.10.0  |
-| --------- | -------- | ------- | -------- |
-| Phase 13  | —        | +47     | 47       |
-| **Total** | **1137** | **+47** | **1184** |
-✅ Veredito Final
+### 🔒 Hardening
+
+- **Namespace Protection**
+  - Reserved identifiers `File` and `Env` cannot be shadowed (E0205)
+  - Generated code uses aliased imports (`_q_os`, `_q_sys`) to prevent runtime shadowing
+- **Data Safety**
+  - `Env.args()` returns a defensive copy of arguments
+
+### 📊 Test Summary
+
+| Component | v1.10.0 | Added | v1.10.1 |
+| --------- | ------- | ----- | ------- |
+| Hardening | 23      | +5    | 28      |
+| **Total** | **1160**| **+5**| **1165**|
 
 ---
 
-## [1.10.1] — 2026-01-16 — "Script Hardened"
+## [1.10.0] — 2026-01-16 — "Comet"
 
-### 🔒 Hardening (System Safety)
-- **Internal Namespace Protection**
-  - Aliasing internal imports as `_q_os` and `_q_sys` to prevent shadowing by user variables.
-  - Prevents crashes when a user declares `let os: int = 1`.
-- **Defensive Copying (Env.args)**
-  - `Env.args()` now returns a deep copy (list()) of `sys.argv`.
-  - Protects the global state of the Python interpreter from mutation within Quasar.
-- **Static Object Protection (E0205)**
-  - Explicit rejection of any attempt to shadow `File` or `Env` identifiers.
+### ✨ Added
+
+- **File System API** (`File` static object)
+  - `File.read`, `File.write`, `File.append`, `File.exists`, `File.delete`
+- **Environment API** (`Env` static object)
+  - `Env.get`, `Env.set`, `Env.args`, `Env.cwd`
 
 ### 📊 Test Summary
-| Component | v1.10.0 | Added | v1.10.1 |
+
+| Component | v1.9.1 | Added | v1.10.0 |
 | --------- | ------- | ----- | ------- |
-| Phase 13  | 47      | +4    | 51      |
-| **Total** | **1184** | **+4** | **1188** |
+| Phase 13  | 0       | +23   | 23      |
+| **Total** | **1137**| **+23**| **1160**|
+
 
 ---
 
