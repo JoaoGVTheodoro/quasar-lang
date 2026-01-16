@@ -296,15 +296,8 @@ import sys
 
 **Document Status:** FROZEN
 
-## 11. Implementation Hardening (v1.10.0)
+## 11. Implementation Hardening (moved)
 
-To ensure robustness against user-defined variables, the Code Generator implements the following defenses:
+Implementation details for Phase 13 hardening are maintained in a separate document: `docs/PHASE13_HARDENING.md`.
 
-### 11.1 Namespace Protection
-- The internal imports `os` and `sys` are aliased to `_q_os` and `_q_sys`.
-- All generated code references these aliases (e.g., `_q_os.path.exists`).
-- This prevents user variables named `os` or `sys` from breaking internal logic.
-
-### 11.2 Immutable Environment Args
-- `Env.args()` generates `list(_q_sys.argv)` instead of a direct reference.
-- This creates a defensive copy, ensuring that modifications to the returned list do not mutate the process-level `sys.argv`.
+> Note: Hardening work (namespace aliasing, defensive copying of `Env.args`, static object protection E0205) is targeted for **v1.10.1** to allow independent review and traceability.

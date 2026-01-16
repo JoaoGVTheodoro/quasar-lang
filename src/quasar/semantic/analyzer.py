@@ -224,6 +224,23 @@ class SemanticAnalyzer:
         self._imported_modules: dict[str, ModuleSymbol] = {}
         # Store enum definitions: name -> list of variant names (Phase 12)
         self._defined_enums: dict[str, list[str]] = {}
+        # Static objects (Phase 13): File, Env
+        # Mapping: name -> method -> (param_types_list, return_type)
+        self._static_objects: dict[str, dict[str, tuple[list[QuasarType], QuasarType]]] = {
+            "File": {
+                "read": ([STR], STR),
+                "write": ([STR, STR], VOID),
+                "append": ([STR, STR], VOID),
+                "exists": ([STR], BOOL),
+                "delete": ([STR], VOID),
+            },
+            "Env": {
+                "get": ([STR, STR], STR),
+                "set": ([STR, STR], VOID),
+                "args": ([], ListType(STR)),
+                "cwd": ([], STR),
+            },
+        }
     
     def analyze(self, program: Program) -> Program:
         """
@@ -298,6 +315,14 @@ class SemanticAnalyzer:
                 span=decl.initializer.span,
             )
         
+        # Prevent shadowing of reserved static objects (E0205)
+        if decl.name in self._static_objects:
+            raise SemanticError(
+                code="E0205",
+                message=f"cannot shadow builtin module '{decl.name}'",
+                span=decl.span,
+            )
+
         # Try to define in current scope (use resolved type)
         symbol = Symbol(
             name=decl.name,
@@ -331,6 +356,14 @@ class SemanticAnalyzer:
                 span=decl.initializer.span,
             )
         
+        # Prevent shadowing of reserved static objects (E0205)
+        if decl.name in self._static_objects:
+            raise SemanticError(
+                code="E0205",
+                message=f"cannot shadow builtin module '{decl.name}'",
+                span=decl.span,
+            )
+
         # Try to define in current scope (use resolved type)
         symbol = Symbol(
             name=decl.name,
@@ -355,6 +388,14 @@ class SemanticAnalyzer:
         # Phase 12: Resolve return type (convert PrimitiveType to EnumType if needed)
         resolved_return_type = self._resolve_type(decl.return_type)
         
+        # Prevent shadowing of reserved static objects (E0205)
+        if decl.name in self._static_objects:
+            raise SemanticError(
+                code="E0205",
+                message=f"cannot shadow builtin module '{decl.name}'",
+                span=decl.span,
+            )
+
         # Register function in current scope
         symbol = Symbol(
             name=decl.name,
@@ -367,8 +408,7 @@ class SemanticAnalyzer:
                 code="E0002",
                 message=f"redeclaration of '{decl.name}' in the same scope",
                 span=decl.span,
-            )
-        
+            )        
         # Enter function scope
         self._symbols.enter_scope()
         
@@ -378,6 +418,13 @@ class SemanticAnalyzer:
         
         # Define parameters in function scope
         for param in decl.params:
+            # Prevent parameter shadowing of reserved static objects (E0205)
+            if param.name in self._static_objects:
+                raise SemanticError(
+                    code="E0205",
+                    message=f"cannot shadow builtin module '{param.name}'",
+                    span=param.span,
+                )
             # Phase 12: Resolve parameter type
             resolved_param_type = self._resolve_type(param.type_annotation)
             param_symbol = Symbol(
@@ -1489,6 +1536,14 @@ class SemanticAnalyzer:
         - E0801: Fields must be unique
         - E0802: Field types must be valid
         """
+        # Prevent shadowing of reserved static objects (E0205)
+        if decl.name in self._static_objects:
+            raise SemanticError(
+                code="E0205",
+                message=f"cannot shadow builtin module '{decl.name}'",
+                span=decl.span,
+            )
+
         # E0800: Check duplicate struct name
         if decl.name in self._defined_types:
             raise SemanticError(
@@ -1852,6 +1907,36 @@ class SemanticAnalyzer:
         Special case: If the object is a module (type starts with __module__),
         treat this as a function call and return ANY type.
         """
+        # Check for static object method calls (Phase 13: File, Env)
+        # If the object is an Identifier with a static object name, handle specially
+        if isinstance(expr.object, Identifier) and expr.object.name in self._static_objects:
+            obj_name = expr.object.name
+            methods = self._static_objects[obj_name]
+            if expr.method not in methods:
+                raise SemanticError(
+                    code="E1105",
+                    message=f"unknown method '{expr.method}' on '{obj_name}'",
+                    span=expr.span,
+                )
+            expected_params, return_type = methods[expr.method]
+            # Validate arg count
+            if len(expected_params) != len(expr.arguments):
+                raise SemanticError(
+                    code="E1106",
+                    message=f"{obj_name}.{expr.method} expects {len(expected_params)} argument(s)",
+                    span=expr.span,
+                )
+            # Validate arg types
+            for i, expected in enumerate(expected_params):
+                actual = self._get_expression_type(expr.arguments[i])
+                if not self._types_compatible(expected, actual):
+                    raise SemanticError(
+                        code="E1107",
+                        message=f"argument {i} to {obj_name}.{expr.method} expects {expected}, got {actual}",
+                        span=expr.arguments[i].span,
+                    )
+            return return_type
+
         # Get the type of the object
         obj_type = self._get_expression_type(expr.object)
         

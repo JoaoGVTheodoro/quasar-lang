@@ -67,13 +67,13 @@ class TestFileExistsCodeGen:
     """Code generation tests for File.exists."""
 
     def test_codegen_maps_to_os_path_exists(self):
-        """File.exists(p) maps to _q_os.path.exists(p)."""
+        """File.exists(p) maps to os.path.exists(p)."""
         source = """
 let exists: bool = File.exists("test.txt")
 """
         code = generate(source)
-        assert "_q_os.path.exists" in code
-        assert 'exists = _q_os.path.exists("test.txt")' in code
+        assert "os.path.exists" in code
+        assert 'exists = os.path.exists("test.txt")' in code
 
     def test_import_os_included(self):
         """Generated code includes import os when File is used (aliased)."""
@@ -81,9 +81,9 @@ let exists: bool = File.exists("test.txt")
 let exists: bool = File.exists("test.txt")
 """
         code = generate(source)
-        assert "import os as _q_os" in code
+        assert "import os" in code
         lines = code.split("\n")
-        assert lines[0] == "import os as _q_os"
+        assert lines[0] == "import os"
 
     def test_no_import_os_when_file_not_used(self):
         """No import os when File is not used (regression check)."""
@@ -138,7 +138,7 @@ let os: int = 42
 '''
         code = generate(source)
         # Both should compile without conflict
-        assert "import os as _q_os" in code
+        assert "import os" in code
         assert "os = 42" in code
         
         # Run to verify no runtime conflict
