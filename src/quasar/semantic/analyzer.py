@@ -226,19 +226,21 @@ class SemanticAnalyzer:
         self._defined_enums: dict[str, list[str]] = {}
         # Static objects (Phase 13): File, Env
         # Mapping: name -> method -> (param_types_list, return_type)
-        self._static_objects: dict[str, dict[str, tuple[list[QuasarType], QuasarType]]] = {
+        # Phase 13: Static builtin modules (File, Env)
+        # These are reserved names that cannot be shadowed
+        self._static_objects: dict[str, dict[str, MethodSignature]] = {
             "File": {
-                "read": ([STR], STR),
-                "write": ([STR, STR], VOID),
-                "append": ([STR, STR], VOID),
-                "exists": ([STR], BOOL),
-                "delete": ([STR], VOID),
+                "read": MethodSignature(params=[("path", STR)], returns=STR),
+                "write": MethodSignature(params=[("path", STR), ("content", STR)], returns=VOID),
+                "append": MethodSignature(params=[("path", STR), ("content", STR)], returns=VOID),
+                "exists": MethodSignature(params=[("path", STR)], returns=BOOL),
+                "delete": MethodSignature(params=[("path", STR)], returns=VOID),
             },
             "Env": {
-                "get": ([STR, STR], STR),
-                "set": ([STR, STR], VOID),
-                "args": ([], ListType(STR)),
-                "cwd": ([], STR),
+                "get": MethodSignature(params=[("key", STR), ("default", STR)], returns=STR),
+                "set": MethodSignature(params=[("key", STR), ("value", STR)], returns=VOID),
+                "args": MethodSignature(params=[], returns=ListType(STR)),
+                "cwd": MethodSignature(params=[], returns=STR),
             },
         }
     
@@ -300,9 +302,18 @@ class SemanticAnalyzer:
         Analyze variable declaration.
         
         Checks:
+        - E0205: Cannot shadow builtin modules (File, Env)
         - E0002: No redeclaration in same scope
         - E0100: Initializer type matches declared type
         """
+        # E0205: Check for builtin module shadowing
+        if decl.name in self._static_objects:
+            raise SemanticError(
+                code="E0205",
+                message=f"cannot shadow builtin module '{decl.name}'",
+                span=decl.span,
+            )
+        
         # Resolve type annotation (Phase 12: convert PrimitiveType to EnumType if needed)
         resolved_type = self._resolve_type(decl.type_annotation)
         
@@ -1918,7 +1929,11 @@ class SemanticAnalyzer:
                     message=f"unknown method '{expr.method}' on '{obj_name}'",
                     span=expr.span,
                 )
-            expected_params, return_type = methods[expr.method]
+            
+            # Phase 13: Extract signature from MethodSignature object
+            signature = methods[expr.method]
+            expected_params = signature.params
+            return_type = signature.returns
             # Validate arg count
             if len(expected_params) != len(expr.arguments):
                 raise SemanticError(
@@ -1928,11 +1943,12 @@ class SemanticAnalyzer:
                 )
             # Validate arg types
             for i, expected in enumerate(expected_params):
+                param_name, param_type = expected
                 actual = self._get_expression_type(expr.arguments[i])
-                if not self._types_compatible(expected, actual):
+                if not self._types_compatible(param_type, actual):
                     raise SemanticError(
                         code="E1107",
-                        message=f"argument {i} to {obj_name}.{expr.method} expects {expected}, got {actual}",
+                        message=f"argument {i} (for '{param_name}') to {obj_name}.{expr.method} expects {param_type}, got {actual}",
                         span=expr.arguments[i].span,
                     )
             return return_type

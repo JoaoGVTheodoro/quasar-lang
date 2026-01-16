@@ -187,10 +187,10 @@ class CodeGenerator:
         # Add imports if necessary
         imports_needed = []
         
-        # Phase 13: System interaction imports (only when File/Env used)
-        if self._uses_system_io(program):
-            imports_needed.append("import os as _q_os")
-            imports_needed.append("import sys as _q_sys")
+        # Phase 13: System interaction imports (always added)
+        # using aliases to prevent shadowing by user variables (e.g. let os: int = 1)
+        imports_needed.append("import os as _q_os")
+        imports_needed.append("import sys as _q_sys")
         
         # Phase 12: Check for enum import
         if any(isinstance(d, EnumDecl) for d in program.declarations):

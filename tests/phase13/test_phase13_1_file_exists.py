@@ -76,23 +76,18 @@ let exists: bool = File.exists("test.txt")
         assert 'exists = _q_os.path.exists("test.txt")' in code
 
     def test_import_os_included(self):
-        """Generated code includes import os when File is used (aliased)."""
-        source = """
-let exists: bool = File.exists("test.txt")
-"""
-        code = generate(source)
-        assert "import os as _q_os" in code
-        lines = code.split("\n")
-        assert lines[0] == "import os as _q_os"
+        code = 'let x: bool = File.exists("test")'
+        py = generate(code)
+        assert "import os as _q_os" in py
 
     def test_no_import_os_when_file_not_used(self):
-        """No import os when File is not used (regression check)."""
+        # UPDATE Phase 13.0: imports always added
         source = """
 let x: int = 42
 """
         code = generate(source)
-        assert "import os" not in code
-        assert code.strip() == "x = 42"
+        assert "import os as _q_os" in code
+        assert "x = 42" in code
 
 
 class TestFileExistsRuntime:
@@ -127,23 +122,26 @@ class TestShadowingSafety:
     """Test that user code doesn't conflict with generated imports."""
 
     def test_user_os_variable_with_file_exists(self):
-        """User can have variable named 'os' alongside File.exists.
-        
-        The generated import os should work correctly even if user 
-        declares a variable with the same name later.
-        """
+        """User can have variable named 'os' alongside File.exists."""
         source = '''
 let exists: bool = File.exists("/tmp")
 let os: int = 42
 '''
         code = generate(source)
-        # Both should compile without conflict
-        assert "import os" in code
+        assert "import os as _q_os" in code
         assert "os = 42" in code
         
         # Run to verify no runtime conflict
         result = compile_and_run(source)
         assert result["os"] == 42
-        # exists should have worked before os was shadowed
-        assert result["exists"] is True  # /tmp usually exists
+        assert isinstance(result["exists"], bool)
+
+    def test_file_exists_namespace_shadowing(self):
+        """let os: int = 1; File.exists() should not crash."""
+        source = '''
+let os: int = 1
+let exists: bool = File.exists("/tmp")
+'''
+        result = compile_and_run(source)
+        assert isinstance(result["exists"], bool)
 

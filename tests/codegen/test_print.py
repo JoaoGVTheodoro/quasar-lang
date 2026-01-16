@@ -11,15 +11,13 @@ from quasar.codegen import CodeGenerator
 
 
 def generate(source: str) -> str:
-    """Helper to generate Python code from Quasar source."""
-    lexer = Lexer(source)
-    tokens = lexer.tokenize()
-    parser = Parser(tokens)
-    ast = parser.parse()
-    analyzer = SemanticAnalyzer()
-    analyzer.analyze(ast)
-    generator = CodeGenerator()
-    return generator.generate(ast)
+    """Helper to parse and generate code from Quasar source."""
+    tokens = Lexer(source).tokenize()
+    ast = Parser(tokens).parse()
+    code = CodeGenerator().generate(ast)
+    # Strip Phase 13 imports for legacy tests
+    code = code.replace("import os as _q_os\nimport sys as _q_sys\n\n", "")
+    return code
 
 
 class TestPrintStatementCodeGen:

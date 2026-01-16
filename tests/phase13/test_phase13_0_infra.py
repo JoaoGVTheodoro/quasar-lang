@@ -27,8 +27,32 @@ def generate(source: str) -> str:
     return CodeGenerator().generate(ast)
 
 
+
 class TestE0205ReservedIdentifiers:
-    """E0205: Cannot shadow builtin modules (File, Env)."""
+    def test_shadow_file_with_param(self):
+        """fn test(File: int) -> int { return File } should be E0205."""
+        source = """
+fn test(File: int) -> int {
+    return File
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0205"
+        assert "File" in excinfo.value.message
+
+    def test_shadow_file_with_nested_scope(self):
+        """let File: int = 1 in nested scope should be E0205."""
+        source = """
+fn outer() -> int {
+    let File: int = 1
+    return File
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0205"
+        assert "File" in excinfo.value.message
 
     def test_shadow_file_with_variable(self):
         """let File: int = 1 should be E0205."""
@@ -139,10 +163,11 @@ let home: str = Env.get("HOME", "/tmp")
 
     def test_no_imports_when_file_env_not_used(self):
         """No os/sys imports when File/Env are not used."""
+        # UPDATE Phase 13.0: os/sys imports are now ALWAYS added to prevent user shadowing logic complexity
         source = """
 let x: int = 42
 """
         result = generate(source)
-        assert "import os as _q_os" not in result
-        assert "import sys as _q_sys" not in result
-        assert result.strip() == "x = 42"
+        # We now expect imports to be present always, aliased
+        assert "import os as _q_os" in result
+        assert "import sys as _q_sys" in result

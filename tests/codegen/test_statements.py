@@ -17,7 +17,10 @@ def generate(source: str) -> str:
     """Helper to parse and generate code from Quasar source."""
     tokens = Lexer(source).tokenize()
     ast = Parser(tokens).parse()
-    return CodeGenerator().generate(ast)
+    code = CodeGenerator().generate(ast)
+    # Strip Phase 13 imports for legacy tests
+    code = code.replace("import os as _q_os\nimport sys as _q_sys\n\n", "")
+    return code
 
 
 class TestIfStmt:
