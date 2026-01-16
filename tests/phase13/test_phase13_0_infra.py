@@ -121,12 +121,12 @@ class TestCodegenImports:
 let exists: bool = File.exists("test.txt")
 """
         result = generate(source)
-        assert "import os" in result
-        assert "import sys" in result
+        assert "import os as _q_os" in result
+        assert "import sys as _q_sys" in result
         # Imports should be at the beginning
         lines = result.split("\n")
-        assert lines[0] == "import os"
-        assert lines[1] == "import sys"
+        assert lines[0] == "import os as _q_os"
+        assert lines[1] == "import sys as _q_sys"
 
     def test_imports_os_and_sys_when_env_used(self):
         """Generated code should have imports when Env is used."""
@@ -134,8 +134,8 @@ let exists: bool = File.exists("test.txt")
 let home: str = Env.get("HOME", "/tmp")
 """
         result = generate(source)
-        assert "import os" in result
-        assert "import sys" in result
+        assert "import os as _q_os" in result
+        assert "import sys as _q_sys" in result
 
     def test_no_imports_when_file_env_not_used(self):
         """No os/sys imports when File/Env are not used."""
@@ -143,6 +143,6 @@ let home: str = Env.get("HOME", "/tmp")
 let x: int = 42
 """
         result = generate(source)
-        assert "import os" not in result
-        assert "import sys" not in result
+        assert "import os as _q_os" not in result
+        assert "import sys as _q_sys" not in result
         assert result.strip() == "x = 42"

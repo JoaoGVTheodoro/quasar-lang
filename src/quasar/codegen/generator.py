@@ -189,8 +189,8 @@ class CodeGenerator:
         
         # Phase 13: System interaction imports (only when File/Env used)
         if self._uses_system_io(program):
-            imports_needed.append("import os")
-            imports_needed.append("import sys")
+            imports_needed.append("import os as _q_os")
+            imports_needed.append("import sys as _q_sys")
         
         # Phase 12: Check for enum import
         if any(isinstance(d, EnumDecl) for d in program.declarations):
@@ -719,7 +719,7 @@ class CodeGenerator:
         if isinstance(expr.object, Identifier):
             if expr.object.name == "File":
                 if expr.method == "exists":
-                    return f"os.path.exists({args[0]})"
+                    return f"_q_os.path.exists({args[0]})"
                 elif expr.method == "read":
                     return f"open({args[0]}, 'r', encoding='utf-8').read()"
                 elif expr.method == "write":
@@ -727,16 +727,16 @@ class CodeGenerator:
                 elif expr.method == "append":
                     return f"open({args[0]}, 'a', encoding='utf-8').write({args[1]})"
                 elif expr.method == "delete":
-                    return f"os.remove({args[0]})"
+                    return f"_q_os.remove({args[0]})"
             elif expr.object.name == "Env":
                 if expr.method == "get":
-                    return f"os.environ.get({args[0]}, {args[1]})"
+                    return f"_q_os.environ.get({args[0]}, {args[1]})"
                 elif expr.method == "set":
-                    return f"os.environ.__setitem__({args[0]}, {args[1]})"
+                    return f"_q_os.environ.__setitem__({args[0]}, {args[1]})"
                 elif expr.method == "args":
-                    return "sys.argv"
+                    return "list(_q_sys.argv)"
                 elif expr.method == "cwd":
-                    return "os.getcwd()"
+                    return "_q_os.getcwd()"
         
         # === String special cases (11.1) ===
         if expr.method == "len":

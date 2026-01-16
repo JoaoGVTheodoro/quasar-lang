@@ -25,6 +25,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | **Total** | **1137** | **+47** | **1184** |
 ✅ Veredito Final
 
+---
+
+## [1.10.1] — 2026-01-16 — "Script Hardened"
+
+### 🔒 Hardening (System Safety)
+- **Internal Namespace Protection**
+  - Aliasing internal imports as `_q_os` and `_q_sys` to prevent shadowing by user variables.
+  - Prevents crashes when a user declares `let os: int = 1`.
+- **Defensive Copying (Env.args)**
+  - `Env.args()` now returns a deep copy (list()) of `sys.argv`.
+  - Protects the global state of the Python interpreter from mutation within Quasar.
+- **Static Object Protection (E0205)**
+  - Explicit rejection of any attempt to shadow `File` or `Env` identifiers.
+
+### 📊 Test Summary
+| Component | v1.10.0 | Added | v1.10.1 |
+| --------- | ------- | ----- | ------- |
+| Phase 13  | 47      | +4    | 51      |
+| **Total** | **1184** | **+4** | **1188** |
 
 ---
 
