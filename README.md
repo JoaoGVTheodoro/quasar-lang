@@ -10,10 +10,11 @@ let h: float = math.sqrt(16.0)
 print("Result: {}", h)
 ```
 
-**Status:** v1.8.0 "Pulsar" — Phase 11 Complete ✅ (1022 tests)
+**Status:** v1.9.0 "Prism" — Phase 12 Complete ✅ (1082 tests)
 
 ## ✨ Features
 
+- **Enums** — `enum Color { Red, Green, Blue }` (v1.9.0)
 - **Native Methods** — `s.upper()`, `l.push()`, `d.has_key()` (v1.8.0)
 - **Modules & Imports** — Python stdlib + local `.qsr` files (v1.6.0)
 - **User Defined Types** — Structs with dot notation
@@ -111,6 +112,21 @@ let p: Point = Point { x: 0, y: 0 }
 p.x = 100
 ```
 
+### Enums (v1.9.0)
+
+```quasar
+enum Status { Pending, Active, Completed }
+
+fn check_status(s: Status) -> bool {
+    return s == Status.Active
+}
+
+let current: Status = Status.Pending
+if current == Status.Pending {
+    print("Waiting...")
+}
+```
+
 ### Dictionaries
 
 ```quasar
@@ -137,7 +153,7 @@ let name: str = input()
 
 ```bash
 pytest tests/ -v
-# 1022 tests passing
+# 1082 tests passing
 ```
 
 ## 📁 Examples
@@ -161,7 +177,8 @@ pytest tests/ -v
 | v1.5.0 - light speed | Structs                  |
 | v1.6.0 - entropy     | Modules & Imports        |
 | v1.7.0 - supernova   | Dictionaries             |
-| **v1.8.0 - pulsar**  | **Native Methods**       |
+| v1.8.0 - pulsar      | Native Methods           |
+| **v1.9.0 - prism**   | **Enums**                |
 
 ## 📄 License
 

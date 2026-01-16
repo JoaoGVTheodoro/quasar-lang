@@ -221,3 +221,73 @@ class ImportDecl(Declaration):
             f"is_local={self.is_local!r}, "
             f"span={self.span!r})"
         )
+
+
+# =============================================================================
+# Phase 12: Enum Declarations
+# =============================================================================
+
+
+@dataclass
+class EnumVariant:
+    """
+    A single variant in an enum declaration.
+    
+    Example:
+        Red
+    
+    Attributes:
+        name: Variant name.
+        span: Source location.
+    
+    # DESIGN NOTE (Phase 12):
+    # Currently, variants are simple identifiers without payloads.
+    # This is intentional for v1.9.0 simplicity.
+    
+    # PHASE 13 PREPARATION:
+    # Pattern Matching will require extending EnumVariant to support:
+    #   - Associated data (payloads): `Some(value: int)`
+    #   - Optional `payload: list[tuple[str, QuasarType]]` field
+    #   - Exhaustiveness checking in match expressions
+    # Do NOT add these fields until Phase 13 design is frozen.
+    """
+    name: str
+    span: Span
+
+    def __repr__(self) -> str:
+        return (
+            f"EnumVariant("
+            f"name={self.name!r}, "
+            f"span={self.span!r})"
+        )
+
+
+@dataclass
+class EnumDecl(Declaration):
+    """
+    Enum declaration: enum Name { Variant1, Variant2, ... }
+    
+    Example:
+        enum Color {
+            Red,
+            Green,
+            Blue
+        }
+    
+    Attributes:
+        name: Enum type name.
+        variants: List of variant definitions.
+        span: Source location.
+    """
+    name: str
+    variants: list[EnumVariant]
+    span: Span
+
+    def __repr__(self) -> str:
+        return (
+            f"EnumDecl("
+            f"name={self.name!r}, "
+            f"variants={self.variants!r}, "
+            f"span={self.span!r})"
+        )
+

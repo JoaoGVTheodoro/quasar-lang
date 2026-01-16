@@ -59,7 +59,7 @@ class TestConditionType:
     def test_if_int_condition(self) -> None:
         """if with int condition should produce E0101."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let x: int = 1
     if (x) { }
 }
@@ -69,7 +69,7 @@ fn f() -> int {
     def test_if_str_condition(self) -> None:
         """if with str condition should produce E0101."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let x: str = "hello"
     if (x) { }
 }
@@ -79,7 +79,7 @@ fn f() -> int {
     def test_while_int_condition(self) -> None:
         """while with int condition should produce E0101."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let x: int = 1
     while (x) { break }
 }
@@ -89,7 +89,7 @@ fn f() -> int {
     def test_while_float_condition(self) -> None:
         """while with float condition should produce E0101."""
         source = """
-fn f() -> int {
+fn f() -> void {
     while (1.0) { break }
 }
 """
@@ -102,7 +102,7 @@ class TestBinaryOperatorTypes:
     def test_add_int_float(self) -> None:
         """Adding int and float should produce type error (D-CF-5)."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: int = 1
     let b: float = 2.0
     let c: int = a + b
@@ -113,7 +113,7 @@ fn f() -> int {
     def test_multiply_int_float(self) -> None:
         """Multiplying int and float should produce type error."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: int = 1
     let b: float = 2.0
     let c: int = a * b
@@ -124,7 +124,7 @@ fn f() -> int {
     def test_add_string_int(self) -> None:
         """Adding string and int should produce type error."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: str = "hello"
     let b: int = 1
     let c: str = a + b
@@ -135,7 +135,7 @@ fn f() -> int {
     def test_string_comparison_lt(self) -> None:
         """String comparison with < should produce type error (D-CF-8)."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: str = "a"
     let b: str = "b"
     let c: bool = a < b
@@ -146,7 +146,7 @@ fn f() -> int {
     def test_string_comparison_gt(self) -> None:
         """String comparison with > should produce type error."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: str = "a"
     let b: str = "b"
     let c: bool = a > b
@@ -161,7 +161,7 @@ class TestLogicalOperatorTypes:
     def test_and_with_int(self) -> None:
         """&& with int operand should produce E0104."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: int = 1
     let b: bool = true
     let c: bool = a && b
@@ -172,7 +172,7 @@ fn f() -> int {
     def test_or_with_string(self) -> None:
         """|| with string operand should produce E0104."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: str = "hello"
     let b: bool = true
     let c: bool = a || b
@@ -183,7 +183,7 @@ fn f() -> int {
     def test_not_with_int(self) -> None:
         """! with int operand should produce E0104."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let x: int = 1
     let y: bool = !x
 }
@@ -197,7 +197,7 @@ class TestValidTypes:
     def test_string_concatenation(self) -> None:
         """String + string should be allowed (D-CF-7)."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: str = "hello"
     let b: str = " world"
     let c: str = a + b
@@ -209,7 +209,7 @@ fn f() -> int {
     def test_string_equality(self) -> None:
         """String == string should be allowed."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: str = "hello"
     let b: str = "world"
     let c: bool = a == b
@@ -221,7 +221,7 @@ fn f() -> int {
     def test_int_arithmetic(self) -> None:
         """int + int should be allowed."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: int = 1
     let b: int = 2
     let c: int = a + b
@@ -233,7 +233,7 @@ fn f() -> int {
     def test_float_arithmetic(self) -> None:
         """float + float should be allowed."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: float = 1.0
     let b: float = 2.0
     let c: float = a + b
@@ -245,7 +245,7 @@ fn f() -> int {
     def test_boolean_comparison(self) -> None:
         """bool condition should be allowed."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let a: int = 1
     let b: int = 2
     if (a < b) { }
@@ -253,3 +253,4 @@ fn f() -> int {
 """
         # Should NOT raise error
         analyze(source)
+

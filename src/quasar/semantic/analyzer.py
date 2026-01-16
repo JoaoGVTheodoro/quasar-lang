@@ -21,6 +21,7 @@ from quasar.ast import (
     StructDecl,
     StructField,
     ImportDecl,
+    EnumDecl,
     # Statements
     Block,
     ExpressionStmt,
@@ -58,6 +59,7 @@ from quasar.ast import (
     PrimitiveType,
     ListType,
     DictType,
+    EnumType,
     INT,
     FLOAT,
     BOOL,
@@ -184,6 +186,33 @@ class SemanticAnalyzer:
                 return True
         return False
     
+    def _resolve_type(self, type_ann: QuasarType) -> QuasarType:
+        """
+        Resolve a type annotation to its semantic type.
+        
+        Phase 12: Convert PrimitiveType("EnumName") to EnumType("EnumName")
+        when the name matches a declared enum.
+        
+        This is needed because the parser produces PrimitiveType for all
+        user-defined types (both structs and enums).
+        """
+        if isinstance(type_ann, PrimitiveType):
+            # Check if this is actually an enum type
+            if type_ann.name in self._defined_enums:
+                return EnumType(type_ann.name)
+        elif isinstance(type_ann, ListType):
+            # Recursively resolve element type
+            resolved_element = self._resolve_type(type_ann.element_type)
+            if resolved_element != type_ann.element_type:
+                return ListType(resolved_element)
+        elif isinstance(type_ann, DictType):
+            # Recursively resolve key and value types
+            resolved_key = self._resolve_type(type_ann.key_type)
+            resolved_value = self._resolve_type(type_ann.value_type)
+            if resolved_key != type_ann.key_type or resolved_value != type_ann.value_type:
+                return DictType(resolved_key, resolved_value)
+        return type_ann
+    
     def __init__(self) -> None:
         """Initialize the semantic analyzer."""
         self._symbols = SymbolTable()
@@ -193,6 +222,8 @@ class SemanticAnalyzer:
         self._defined_types: dict[str, list[tuple[str, QuasarType]]] = {}
         # Track imported modules (Phase 9)
         self._imported_modules: dict[str, ModuleSymbol] = {}
+        # Store enum definitions: name -> list of variant names (Phase 12)
+        self._defined_enums: dict[str, list[str]] = {}
     
     def analyze(self, program: Program) -> Program:
         """
@@ -220,6 +251,8 @@ class SemanticAnalyzer:
             self._analyze_struct_decl(decl)
         elif isinstance(decl, ImportDecl):
             self._analyze_import_decl(decl)
+        elif isinstance(decl, EnumDecl):
+            self._analyze_enum_decl(decl)
         elif isinstance(decl, ExpressionStmt):
             self._analyze_expression_stmt(decl)
         elif isinstance(decl, IfStmt):
@@ -253,19 +286,22 @@ class SemanticAnalyzer:
         - E0002: No redeclaration in same scope
         - E0100: Initializer type matches declared type
         """
+        # Resolve type annotation (Phase 12: convert PrimitiveType to EnumType if needed)
+        resolved_type = self._resolve_type(decl.type_annotation)
+        
         # Check initializer type
         init_type = self._get_expression_type(decl.initializer)
-        if not self._types_compatible(decl.type_annotation, init_type):
+        if not self._types_compatible(resolved_type, init_type):
             raise SemanticError(
                 code="E0100",
-                message=f"type mismatch: expected {decl.type_annotation}, got {init_type}",
+                message=f"type mismatch: expected {resolved_type}, got {init_type}",
                 span=decl.initializer.span,
             )
         
-        # Try to define in current scope
+        # Try to define in current scope (use resolved type)
         symbol = Symbol(
             name=decl.name,
-            type_annotation=decl.type_annotation,
+            type_annotation=resolved_type,
             is_const=False,
         )
         if not self._symbols.define(symbol):
@@ -283,19 +319,22 @@ class SemanticAnalyzer:
         - E0002: No redeclaration in same scope
         - E0100: Initializer type matches declared type
         """
+        # Resolve type annotation (Phase 12: convert PrimitiveType to EnumType if needed)
+        resolved_type = self._resolve_type(decl.type_annotation)
+        
         # Check initializer type
         init_type = self._get_expression_type(decl.initializer)
-        if not self._types_compatible(decl.type_annotation, init_type):
+        if not self._types_compatible(resolved_type, init_type):
             raise SemanticError(
                 code="E0100",
-                message=f"type mismatch: expected {decl.type_annotation}, got {init_type}",
+                message=f"type mismatch: expected {resolved_type}, got {init_type}",
                 span=decl.initializer.span,
             )
         
-        # Try to define in current scope
+        # Try to define in current scope (use resolved type)
         symbol = Symbol(
             name=decl.name,
-            type_annotation=decl.type_annotation,
+            type_annotation=resolved_type,
             is_const=True,
         )
         if not self._symbols.define(symbol):
@@ -313,10 +352,13 @@ class SemanticAnalyzer:
         - E0002: No redeclaration of function name
         - Parameters and body in new scope
         """
+        # Phase 12: Resolve return type (convert PrimitiveType to EnumType if needed)
+        resolved_return_type = self._resolve_type(decl.return_type)
+        
         # Register function in current scope
         symbol = Symbol(
             name=decl.name,
-            type_annotation=decl.return_type,
+            type_annotation=resolved_return_type,
             is_const=True,  # Functions cannot be reassigned
             is_function=True,
         )
@@ -330,15 +372,17 @@ class SemanticAnalyzer:
         # Enter function scope
         self._symbols.enter_scope()
         
-        # Save and set current function return type
+        # Save and set current function return type (use resolved type)
         prev_return_type = self._current_function_return_type
-        self._current_function_return_type = decl.return_type
+        self._current_function_return_type = resolved_return_type
         
         # Define parameters in function scope
         for param in decl.params:
+            # Phase 12: Resolve parameter type
+            resolved_param_type = self._resolve_type(param.type_annotation)
             param_symbol = Symbol(
                 name=param.name,
-                type_annotation=param.type_annotation,
+                type_annotation=resolved_param_type,
                 is_const=False,
             )
             # Parameters should not conflict in same scope
@@ -354,9 +398,43 @@ class SemanticAnalyzer:
         for stmt in decl.body.declarations:
             self._analyze_declaration(stmt)
         
+        # E0303: Check that non-void functions have guaranteed return on all paths
+        if resolved_return_type != VOID:
+            if not self._block_always_returns(decl.body):
+                raise SemanticError(
+                    code="E0303",
+                    message=f"function '{decl.name}' with return type '{resolved_return_type}' may not return a value on all code paths",
+                    span=decl.span,
+                )
+        
         # Restore previous context
         self._current_function_return_type = prev_return_type
         self._symbols.exit_scope()
+    
+    def _block_always_returns(self, block: Block) -> bool:
+        """
+        Check if a block guarantees a return statement on all code paths.
+        
+        This is used for E0303 to ensure non-void functions have guaranteed
+        return on all execution paths.
+        
+        A block always returns if:
+        - It contains a return statement at top level, OR
+        - It contains an if/else where BOTH branches always return
+        
+        Note: This is conservative. Loops are not considered to always return
+        because they might not execute (condition might be false initially).
+        """
+        for stmt in block.declarations:
+            if isinstance(stmt, ReturnStmt):
+                return True
+            if isinstance(stmt, IfStmt):
+                # Only if/else (with else branch) can guarantee return
+                if stmt.else_block is not None:
+                    if (self._block_always_returns(stmt.then_block) and
+                        self._block_always_returns(stmt.else_block)):
+                        return True
+        return False
     
     # =========================================================================
     # Statement Analysis
@@ -486,11 +564,16 @@ class SemanticAnalyzer:
         Analyze return statement.
         
         Checks:
+        - E0304: Return must be inside a function
         - E0302: Return type must match function return type
         """
         if self._current_function_return_type is None:
-            # Not inside a function - shouldn't happen with valid parse
-            return
+            # Not inside a function - this is an error
+            raise SemanticError(
+                code="E0304",
+                message="'return' statement outside of function",
+                span=stmt.span,
+            )
         
         return_type = self._get_expression_type(stmt.value)
         if not self._types_compatible(self._current_function_return_type, return_type):
@@ -950,6 +1033,24 @@ class SemanticAnalyzer:
         
         # Equality operators: operands must be same type
         if op in (BinaryOp.EQ, BinaryOp.NE):
+            # Phase 12: Enum comparison - must be same enum type
+            if isinstance(left_type, EnumType) or isinstance(right_type, EnumType):
+                if isinstance(left_type, EnumType) and isinstance(right_type, EnumType):
+                    if left_type != right_type:
+                        raise SemanticError(
+                            code="E1204",
+                            message=f"cannot compare enum '{left_type}' with '{right_type}'",
+                            span=expr.span,
+                        )
+                    return BOOL
+                else:
+                    # One is enum, one is not
+                    raise SemanticError(
+                        code="E1204",
+                        message=f"cannot compare enum '{left_type}' with '{right_type}'",
+                        span=expr.span,
+                    )
+            
             if left_type != right_type:
                 raise SemanticError(
                     code="E0102",
@@ -960,6 +1061,14 @@ class SemanticAnalyzer:
         
         # Comparison operators: numeric types only, same type, no strings
         if op in (BinaryOp.LT, BinaryOp.GT, BinaryOp.LE, BinaryOp.GE):
+            # Phase 12: Enums cannot use relational operators
+            if isinstance(left_type, EnumType) or isinstance(right_type, EnumType):
+                raise SemanticError(
+                    code="E1205",
+                    message="enum types only support '==' and '!=' comparison",
+                    span=expr.span,
+                )
+            
             # Strings cannot use < > <= >=
             if left_type == STR or right_type == STR:
                 raise SemanticError(
@@ -1346,6 +1455,51 @@ class SemanticAnalyzer:
         # Store struct definition with field info
         self._defined_types[decl.name] = field_info
 
+    # =========================================================================
+    # Phase 12: Enum Declaration Analysis
+    # =========================================================================
+
+    def _analyze_enum_decl(self, decl: EnumDecl) -> None:
+        """
+        Analyze enum declaration.
+        
+        Checks:
+        - E1200: Enum name must not conflict with existing types (struct or enum)
+        - E1201: Variant names must be unique within the enum
+        """
+        # E1200: Check for name collision with existing structs
+        if decl.name in self._defined_types:
+            raise SemanticError(
+                code="E1200",
+                message=f"redeclaration of type '{decl.name}' (conflicts with struct)",
+                span=decl.span,
+            )
+        
+        # E1200: Check for name collision with existing enums
+        if decl.name in self._defined_enums:
+            raise SemanticError(
+                code="E1200",
+                message=f"redeclaration of enum '{decl.name}'",
+                span=decl.span,
+            )
+        
+        # E1201: Check for duplicate variants
+        seen_variants: set[str] = set()
+        variant_names: list[str] = []
+        
+        for variant in decl.variants:
+            if variant.name in seen_variants:
+                raise SemanticError(
+                    code="E1201",
+                    message=f"duplicate variant '{variant.name}' in enum '{decl.name}'",
+                    span=variant.span,
+                )
+            seen_variants.add(variant.name)
+            variant_names.append(variant.name)
+        
+        # Register enum
+        self._defined_enums[decl.name] = variant_names
+
     def _validate_type_annotation(self, type_ann: QuasarType, span: Span) -> None:
         """Validate that a type annotation refers to a valid type."""
         if isinstance(type_ann, PrimitiveType):
@@ -1426,11 +1580,38 @@ class SemanticAnalyzer:
         Get the type of a member access expression.
         
         Checks:
+        - Phase 12: Enum variant access (EnumName.Variant)
         - E0807: Object must be a struct type
         - E0808: Field must exist
+        - E1202: Enum variant must exist
         
-        Returns: The type of the accessed field
+        Returns: The type of the accessed field or EnumType for enum access
         """
+        # Phase 12: Check if this is an enum variant access (e.g., Color.Red)
+        # Pattern: Identifier.Identifier where the first identifier is an enum name
+        #
+        # DESIGN NOTE (Phase 12):
+        # This check MUST come BEFORE struct field resolution. Both enum access
+        # (Color.Red) and struct member access (point.x) use MemberAccessExpr,
+        # but they have different semantics. The dispatch order is:
+        #   1. Check if object is Identifier naming a declared enum → EnumType
+        #   2. Check if object is a module → ANY (Phase 9)
+        #   3. Otherwise → struct field access
+        # Changing this order will cause subtle type resolution bugs.
+        #
+        if isinstance(expr.object, Identifier):
+            potential_enum = expr.object.name
+            if potential_enum in self._defined_enums:
+                # This is an enum variant access
+                variants = self._defined_enums[potential_enum]
+                if expr.member not in variants:
+                    raise SemanticError(
+                        code="E1202",
+                        message=f"enum '{potential_enum}' has no variant '{expr.member}'",
+                        span=expr.span,
+                    )
+                return EnumType(potential_enum)
+        
         # Get the type of the object being accessed
         obj_type = self._get_expression_type(expr.object)
         

@@ -44,7 +44,7 @@ class TestUndeclaredVariable:
     
     def test_undeclared_in_assignment(self) -> None:
         """Assigning to undeclared variable should produce E0001."""
-        source = "fn f() -> int { x = 1 }"
+        source = "fn f() -> void { x = 1 }"
         expect_error(source, "E0001")
     
     def test_undeclared_in_return(self) -> None:
@@ -54,7 +54,7 @@ class TestUndeclaredVariable:
     
     def test_undeclared_in_condition(self) -> None:
         """Using undeclared variable in condition should produce E0001."""
-        source = "fn f() -> int { if (x) { } }"
+        source = "fn f() -> void { if (x) { } }"
         expect_error(source, "E0001")
 
 
@@ -64,7 +64,7 @@ class TestRedeclaration:
     def test_redeclare_let_in_same_scope(self) -> None:
         """Redeclaring let in same scope should produce E0002."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let x: int = 1
     let x: int = 2
 }
@@ -92,8 +92,8 @@ fn f(x: int) -> int {
     def test_redeclare_function(self) -> None:
         """Redeclaring function should produce E0002."""
         source = """
-fn f() -> int { }
-fn f() -> int { }
+fn f() -> void { }
+fn f() -> void { }
 """
         expect_error(source, "E0002")
 
@@ -104,7 +104,7 @@ class TestShadowing:
     def test_shadow_in_nested_block(self) -> None:
         """Shadowing in nested block should be allowed."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let x: int = 1
     if (true) {
         let x: int = 2
@@ -118,7 +118,7 @@ fn f() -> int {
         """Shadowing global in function should be allowed."""
         source = """
 let x: int = 1
-fn f() -> int {
+fn f() -> void {
     let x: int = 2
 }
 """
@@ -128,7 +128,7 @@ fn f() -> int {
     def test_shadow_in_while_body(self) -> None:
         """Shadowing in while body should be allowed."""
         source = """
-fn f() -> int {
+fn f() -> void {
     let x: int = 1
     while (true) {
         let x: int = 2
@@ -147,7 +147,7 @@ class TestConstAssignment:
         """Assigning to const should produce E0003."""
         source = """
 const X: int = 1
-fn f() -> int {
+fn f() -> void {
     X = 2
 }
 """
@@ -156,7 +156,7 @@ fn f() -> int {
     def test_assign_to_local_const(self) -> None:
         """Assigning to local const should produce E0003."""
         source = """
-fn f() -> int {
+fn f() -> void {
     const x: int = 1
     x = 2
 }

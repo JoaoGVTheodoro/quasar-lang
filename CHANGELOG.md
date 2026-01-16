@@ -7,6 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.1] — 2026-01-16 — "Prism Hardened"
+
+### 🔒 Hardening
+
+- **Return Path Analysis (E0303)**
+  - Functions with non-void return types now require guaranteed return on all code paths
+  - Conservative analysis: if/else with returns in both branches satisfies requirement
+  - Loops are not considered guaranteed returns (may not execute)
+
+- **Return Outside Function (E0304)**
+  - Return statements at module level now produce semantic error
+  - Previously silently ignored
+
+### 📊 Test Summary
+
+| Component  | v1.9.0   | Added    | v1.9.1   |
+| ---------- | -------- | -------- | -------- |
+| Hardening  | 25       | +12      | 37       |
+| **Total**  | **1107** | **+12**  | **1119** |
+
+---
+
+## [1.9.0] — 2026-01-16 — "Prism"
+
+### ✨ Added
+
+- **Enums** — Named variant types
+  - Declaration: `enum Color { Red, Green, Blue }`
+  - Variant access: `Color.Red`
+  - Type annotations: `let c: Color = Color.Red`
+  - Equality comparison: `c == Color.Red`, `c != Color.Blue`
+  - Function parameters and returns: `fn check(s: Status) -> bool`
+
+- **AST Infrastructure**
+  - New AST nodes: `EnumDecl`, `EnumVariant`
+  - New type: `EnumType`
+  - Parser: `_enum_decl()` with trailing comma support
+
+- **Semantic Analysis**
+  - Enum registry: `_defined_enums`
+  - Type resolution: `_resolve_type()` for PrimitiveType → EnumType
+  - Comparison validation for same-type enums only
+
+- **Python Code Generation**
+  - `from enum import Enum` import
+  - `class Color(Enum):` with string-valued variants
+
+- **New Error Codes**
+  - E1200: Redeclaration of type (enum/struct conflict)
+  - E1201: Duplicate variant in enum
+  - E1202: Unknown variant access
+  - E1204: Comparing different enum types
+  - E1205: Relational operators (<, >, <=, >=) not allowed on enums
+
+### 📊 Test Summary
+
+| Component | v1.8.0   | Added   | v1.9.0   |
+| --------- | -------- | ------- | -------- |
+| Phase 12  | —        | +60     | 60       |
+| **Total** | **1022** | **+60** | **1082** |
+
+### 📁 New Files
+
+- `tests/phase12/test_phase12_0_infrastructure.py` — 12 lexer/parser tests
+- `tests/phase12/test_phase12_1_semantic.py` — 21 semantic tests
+- `tests/phase12/test_phase12_2_codegen.py` — 14 codegen tests
+- `tests/phase12/test_phase12_3_integration.py` — 13 E2E tests
+- `docs/PHASE12_DESIGN.md` — Phase 12 design document (FROZEN)
+
+### 🔧 Modified Files
+
+- `src/quasar/lexer/token_type.py` — Added `ENUM` token
+- `src/quasar/ast/declarations.py` — Added `EnumDecl`, `EnumVariant`
+- `src/quasar/ast/types.py` — Added `EnumType`, updated `QuasarType`
+- `src/quasar/ast/__init__.py` — Exported enum types
+- `src/quasar/parser/parser.py` — Added `_enum_decl()`, `_enum_variant()`
+- `src/quasar/semantic/analyzer.py` — Added `_analyze_enum_decl()`, `_resolve_type()`
+- `src/quasar/codegen/generator.py` — Added `_generate_enum_decl()`
+
+---
+
+
 ## [1.8.0] — 2026-01-16 — "Pulsar"
 
 ### ✨ Added

@@ -35,7 +35,7 @@ class TestBreakOutsideLoop:
     def test_break_in_function(self) -> None:
         """break outside of loop should produce E0200."""
         source = """
-fn f() -> int {
+fn f() -> void {
     break
 }
 """
@@ -44,7 +44,7 @@ fn f() -> int {
     def test_break_in_if(self) -> None:
         """break inside if but not in loop should produce E0200."""
         source = """
-fn f() -> int {
+fn f() -> void {
     if (true) {
         break
     }
@@ -55,7 +55,7 @@ fn f() -> int {
     def test_break_after_loop(self) -> None:
         """break after loop ends should produce E0200."""
         source = """
-fn f() -> int {
+fn f() -> void {
     while (true) { }
     break
 }
@@ -69,7 +69,7 @@ class TestContinueOutsideLoop:
     def test_continue_in_function(self) -> None:
         """continue outside of loop should produce E0201."""
         source = """
-fn f() -> int {
+fn f() -> void {
     continue
 }
 """
@@ -78,7 +78,7 @@ fn f() -> int {
     def test_continue_in_if(self) -> None:
         """continue inside if but not in loop should produce E0201."""
         source = """
-fn f() -> int {
+fn f() -> void {
     if (true) {
         continue
     }
@@ -93,7 +93,7 @@ class TestValidBreakContinue:
     def test_break_in_while(self) -> None:
         """break inside while should be allowed."""
         source = """
-fn f() -> int {
+fn f() -> void {
     while (true) {
         break
     }
@@ -105,7 +105,7 @@ fn f() -> int {
     def test_continue_in_while(self) -> None:
         """continue inside while should be allowed."""
         source = """
-fn f() -> int {
+fn f() -> void {
     while (true) {
         continue
     }
@@ -117,7 +117,7 @@ fn f() -> int {
     def test_break_in_nested_if(self) -> None:
         """break inside if inside while should be allowed."""
         source = """
-fn f() -> int {
+fn f() -> void {
     while (true) {
         if (true) {
             break
@@ -131,7 +131,7 @@ fn f() -> int {
     def test_break_in_nested_while(self) -> None:
         """break in nested while should only exit inner loop."""
         source = """
-fn f() -> int {
+fn f() -> void {
     while (true) {
         while (false) {
             break
