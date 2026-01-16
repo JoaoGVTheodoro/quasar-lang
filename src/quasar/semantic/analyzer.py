@@ -398,6 +398,9 @@ class SemanticAnalyzer:
         for stmt in decl.body.declarations:
             self._analyze_declaration(stmt)
         
+        # E0305: Check for unreachable code after return
+        self._check_unreachable_code(decl.body)
+        
         # E0303: Check that non-void functions have guaranteed return on all paths
         if resolved_return_type != VOID:
             if not self._block_always_returns(decl.body):
@@ -435,6 +438,51 @@ class SemanticAnalyzer:
                         self._block_always_returns(stmt.else_block)):
                         return True
         return False
+    
+    def _check_unreachable_code(self, block: Block) -> None:
+        """
+        Check for unreachable code after control flow statements.
+        
+        E0305: Code after unconditional control flow transfer is unreachable.
+        
+        This detects statements after:
+        - return (function exit)
+        - break (loop exit)
+        - continue (iteration skip)
+        
+        Recursively checks nested if/else/while/for blocks.
+        """
+        saw_terminator = False
+        terminator_kind = ""
+        for stmt in block.declarations:
+            if saw_terminator:
+                # Any statement after terminator is unreachable
+                raise SemanticError(
+                    code="E0305",
+                    message=f"unreachable code after {terminator_kind} statement",
+                    span=stmt.span,
+                )
+            
+            if isinstance(stmt, ReturnStmt):
+                saw_terminator = True
+                terminator_kind = "return"
+            elif isinstance(stmt, BreakStmt):
+                saw_terminator = True
+                terminator_kind = "break"
+            elif isinstance(stmt, ContinueStmt):
+                saw_terminator = True
+                terminator_kind = "continue"
+            elif isinstance(stmt, IfStmt):
+                # Recursively check nested blocks
+                self._check_unreachable_code(stmt.then_block)
+                if stmt.else_block is not None:
+                    self._check_unreachable_code(stmt.else_block)
+            elif isinstance(stmt, WhileStmt):
+                self._check_unreachable_code(stmt.body)
+            elif isinstance(stmt, ForStmt):
+                self._check_unreachable_code(stmt.body)
+            elif isinstance(stmt, Block):
+                self._check_unreachable_code(stmt)
     
     # =========================================================================
     # Statement Analysis
@@ -1126,6 +1174,21 @@ class SemanticAnalyzer:
                     message="arithmetic operators not supported for bool",
                     span=expr.span,
                 )
+            
+            # E0104: Division or modulo by literal zero
+            if op in (BinaryOp.DIV, BinaryOp.MOD):
+                if isinstance(expr.right, IntLiteral) and expr.right.value == 0:
+                    raise SemanticError(
+                        code="E0104",
+                        message="division by zero",
+                        span=expr.right.span,
+                    )
+                if isinstance(expr.right, FloatLiteral) and expr.right.value == 0.0:
+                    raise SemanticError(
+                        code="E0104",
+                        message="division by zero",
+                        span=expr.right.span,
+                    )
             
             return left_type
         

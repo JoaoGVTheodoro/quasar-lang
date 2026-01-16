@@ -1,7 +1,7 @@
 """
 Hardening Tests: Return Path Analysis
 
-Tests for E0303 (missing return) and E0304 (return outside function).
+Tests for E0303 (missing return), E0304 (return outside function), E0305 (unreachable code).
 """
 import pytest
 
@@ -172,3 +172,136 @@ fn get_value(x: int) -> int {
 }
 """
         analyze(source)
+
+
+class TestE0305UnreachableCode:
+    """E0305: Unreachable code after return statement."""
+
+    def test_code_after_return(self):
+        """Statements after return should be E0305."""
+        source = """
+fn f() -> int {
+    return 42
+    let x: int = 5
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0305"
+        assert "unreachable" in excinfo.value.message
+
+    def test_multiple_returns_after_return(self):
+        """Multiple statements after return should error on first unreachable."""
+        source = """
+fn f() -> int {
+    return 1
+    return 2
+    return 3
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0305"
+
+    def test_code_after_return_in_if(self):
+        """Unreachable code in if branch should be E0305."""
+        source = """
+fn f(x: int) -> int {
+    if x > 0 {
+        return x
+        let y: int = 0
+    }
+    return 0
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0305"
+
+    def test_code_after_return_in_else(self):
+        """Unreachable code in else branch should be E0305."""
+        source = """
+fn f(x: int) -> int {
+    if x > 0 {
+        return x
+    } else {
+        return 0
+        let y: int = 1
+    }
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0305"
+
+    def test_code_after_return_in_while(self):
+        """Unreachable code in while body should be E0305."""
+        source = """
+fn f() -> int {
+    while true {
+        return 42
+        let x: int = 0
+    }
+    return 0
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0305"
+
+    def test_return_in_if_else_no_unreachable(self):
+        """Return in if/else with code after is valid (not guaranteed)."""
+        source = """
+fn f(x: int) -> int {
+    if x > 0 {
+        return x
+    }
+    return 0
+}
+"""
+        # This is valid because if has no else, so code after if is reachable
+        analyze(source)
+
+    def test_code_after_break(self):
+        """Code after break should be E0305."""
+        source = """
+fn f() -> void {
+    while true {
+        break
+        let x: int = 5
+    }
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0305"
+        assert "break" in excinfo.value.message
+
+    def test_code_after_continue(self):
+        """Code after continue should be E0305."""
+        source = """
+fn f() -> void {
+    while true {
+        continue
+        let x: int = 5
+    }
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0305"
+        assert "continue" in excinfo.value.message
+
+    def test_break_in_for_unreachable(self):
+        """Code after break in for loop should be E0305."""
+        source = """
+fn f() -> void {
+    for i in 0..10 {
+        break
+        print(i)
+    }
+}
+"""
+        with pytest.raises(SemanticError) as excinfo:
+            analyze(source)
+        assert excinfo.value.code == "E0305"

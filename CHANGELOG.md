@@ -20,12 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Return statements at module level now produce semantic error
   - Previously silently ignored
 
+- **Unreachable Code Detection (E0305)**
+  - Statements after unconditional return/break/continue are now rejected
+  - Recursively checks nested if/else/while/for blocks
+
+- **Literal Division by Zero (E0104)**
+  - Division or modulo by literal zero (`/ 0`, `% 0`) now rejected at compile time
+  - Only detects literal zero — runtime division by variable is not checked
+
 ### 📊 Test Summary
 
 | Component  | v1.9.0   | Added    | v1.9.1   |
 | ---------- | -------- | -------- | -------- |
-| Hardening  | 25       | +12      | 37       |
-| **Total**  | **1107** | **+12**  | **1119** |
+| Hardening  | 25       | +30      | 55       |
+| **Total**  | **1107** | **+30**  | **1137** |
 
 ---
 
