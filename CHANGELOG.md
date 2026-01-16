@@ -7,6 +7,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.0] — 2026-01-16 — "Pulsar"
+
+### ✨ Added
+
+- **Native Methods** — Method syntax for built-in types
+  - **String Methods (10):** `upper()`, `lower()`, `trim()`, `replace()`, `split()`, `contains()`, `starts_with()`, `ends_with()`, `to_int()`, `to_float()`
+  - **List Methods (6):** `push()`, `pop()`, `contains()`, `join()`, `reverse()`, `clear()`
+  - **Dict Methods (7):** `has_key()`, `get()`, `remove()`, `clear()`, `keys()`, `values()`
+
+- **Method Call Infrastructure**
+  - New AST node: `MethodCallExpr(object, method, arguments, span)`
+  - Parser: DOT + IDENTIFIER + LPAREN → method call detection
+  - Primitive Methods Registry with 23 method signatures
+  - Generic type resolution for collection methods
+
+- **Python-Idiomatic Code Generation**
+  - `trim()` → `.strip()`
+  - `contains(x)` → `(x in obj)`
+  - `push(v)` → `.append(v)`
+  - `join(sep)` → `sep.join(obj)` (inverted receiver)
+  - `has_key(k)` → `(k in obj)`
+  - `remove(k)` → `.pop(k, None)`
+  - `keys()` → `list(obj.keys())`
+  - `values()` → `list(obj.values())`
+
+- **New Error Codes**
+  - E1100: Generic type mismatch in method calls
+  - E1102: join() only valid on [str] lists
+  - E1105: Unknown method on type
+  - E1106: Method argument count mismatch
+  - E1107: Method argument type mismatch
+
+### 📊 Test Summary
+
+| Component | v1.7.0  | Added   | v1.8.0   |
+| --------- | ------- | ------- | -------- |
+| Phase 11  | —       | +81     | 81       |
+| **Total** | **941** | **+81** | **1022** |
+
+### 📁 New Files
+
+- `tests/phase11/test_phase11_0_infrastructure.py` — 18 infrastructure tests
+- `tests/phase11/test_phase11_1_string_methods.py` — 31 string method tests
+- `tests/phase11/test_phase11_2_collection_methods.py` — 32 collection method tests
+- `docs/PHASE11_DESIGN.md` — Phase 11 design document (FROZEN)
+- `docs/RELEASE_v1.8.0.md` — Release notes
+
+### 🔧 Modified Files
+
+- `src/quasar/ast/expressions.py` — Added `MethodCallExpr` dataclass
+- `src/quasar/ast/__init__.py` — Exported `MethodCallExpr`
+- `src/quasar/parser/parser.py` — DOT handling with method call detection
+- `src/quasar/semantic/analyzer.py` — `PRIMITIVE_METHODS` registry, `_get_method_call_expr_type()`
+- `src/quasar/codegen/generator.py` — `_generate_method_call_expr()` with special mappings
+
+---
+
+## [1.7.0] — 2026-01-15 — "Supernova"
+
+### ✨ Added
+
+- **Dictionaries** — `Dict[K, V]` hash maps
+  - Literal syntax: `{ "key": value }`
+  - Type annotations: `Dict[str, int]`
+  - Indexing: `d["key"]`, `d["key"] = value`
+  - Builtins: `keys()`, `values()`, `len()`
+
+### 📊 Test Summary
+
+| Component | v1.6.0  | Added   | v1.7.0  |
+| --------- | ------- | ------- | ------- |
+| Phase 10  | —       | +86     | 86      |
+| **Total** | **855** | **+86** | **941** |
+
+---
+
+## [1.6.0] — 2026-01-15 — "Entropy"
+
+### ✨ Added
+
+- **Modules & Imports** — Python stdlib + local .qsr files
+  - `import math` — Python stdlib
+  - `import "./utils.qsr"` — Local Quasar files
+  - Namespace access: `math.sqrt()`, `utils.helper()`
+
+---
+
+## [1.5.0] — 2026-01-15 — "Light Speed"
+
+### ✨ Added
+
+- **Structs** — User-defined types
+  - Declaration: `struct Point { x: int, y: int }`
+  - Instantiation: `Point { x: 0, y: 0 }`
+  - Member access: `p.x`, `p.x = 100`
+  - Nested structs support
+
+---
+
+## [1.4.0] — 2026-01-15 — "Galaxy"
+
+### ✨ Added
+
+- **Console Input** — `input()` builtin
+- **Type Casting** — `int()`, `float()`, `str()`, `bool()`
+
+---
+
 ## [1.3.0] — 2026-01-15
 
 ### ✨ Added

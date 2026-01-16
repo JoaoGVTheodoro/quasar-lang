@@ -1,8 +1,8 @@
 # Quasar Language Specification
 
-> **Versão:** 1.0.0  
-> **Status:** Em desenvolvimento  
-> **Última atualização:** 15 de janeiro de 2026
+> **Versão:** 1.8.0  
+> **Status:** v1.8.0 "Pulsar" - Phase 11 Complete  
+> **Última atualização:** 16 de janeiro de 2026
 
 ---
 
@@ -19,13 +19,13 @@
 
 ### 1.2 Características Principais
 
-| Característica | Descrição                               |
-| -------------- | --------------------------------------- |
-| **Tipagem**    | Estática, explícita, sem inferência     |
-| **Tipos**      | `int`, `float`, `bool`, `str` (fechado) |
-| **Paradigma**  | Imperativo com funções                  |
-| **Target**     | Python 3.10+                            |
-| **Extensão**   | `.qsr`                                  |
+| Característica | Descrição                                         |
+| -------------- | ------------------------------------------------- |
+| **Tipagem**    | Estática, explícita, sem inferência               |
+| **Tipos**      | `int`, `float`, `bool`, `str`, `[T]`, `Dict[K,V]` |
+| **Paradigma**  | Imperativo com funções                            |
+| **Target**     | Python 3.10+                                      |
+| **Extensão**   | `.qsr`                                            |
 
 ---
 
@@ -59,11 +59,49 @@
 - Sem coerção implícita entre tipos
 - Escopos aninhados com shadowing permitido
 
-### Phase 4 — Code Generation 🔄 EM ANDAMENTO
+### Phase 4 — Code Generation ✅ FROZEN
 
 - Transpilação AST → Python
-- Testes criados (68 testes)
-- Implementação pendente
+- Testes criados e passando
+- Implementação completa
+
+### Phase 5 — Print Statement ✅ FROZEN
+
+- `print()` builtin com múltiplos argumentos
+- Parâmetros `sep` e `end`
+- String interpolation com `{}`
+
+### Phase 6 — Lists & Ranges ✅ FROZEN
+
+- Tipo `[T]` para listas
+- Sintaxe de range `0..10`
+- Loops `for i in range`
+
+### Phase 7 — I/O & Casting ✅ FROZEN
+
+- `input()` builtin
+- Casting: `int()`, `float()`, `str()`, `bool()`
+
+### Phase 8 — Structs ✅ FROZEN
+
+- Declaração: `struct Point { x: int, y: int }`
+- Instanciação e acesso a membros
+
+### Phase 9 — Modules & Imports ✅ FROZEN
+
+- `import math` (Python stdlib)
+- `import "./file.qsr"` (local files)
+
+### Phase 10 — Dictionaries ✅ FROZEN
+
+- Tipo `Dict[K, V]`
+- Literais, indexação, builtins
+
+### Phase 11 — Primitive Methods ✅ FROZEN
+
+- Métodos nativos para str, list, dict
+- 23 métodos implementados
+- Generic type resolution
 
 ---
 
@@ -182,17 +220,25 @@ Node (abstract)
 │   ├── BinaryExpr      (left, operator, right)
 │   ├── UnaryExpr       (operator, operand)
 │   ├── CallExpr        (callee, arguments)
+│   ├── MethodCallExpr  (object, method, arguments)  # v1.8.0
+│   ├── MemberAccessExpr(object, member)             # v1.5.0
+│   ├── IndexExpr       (object, index)              # v1.2.0
 │   ├── Identifier      (name)
 │   ├── IntLiteral      (value)
 │   ├── FloatLiteral    (value)
 │   ├── StringLiteral   (value)
-│   └── BoolLiteral     (value)
+│   ├── BoolLiteral     (value)
+│   ├── ListLiteral     (elements)                   # v1.2.0
+│   ├── DictLiteral     (pairs)                      # v1.7.0
+│   └── RangeExpr       (start, end)                 # v1.2.0
 │
 ├── Statement (abstract)
 │   ├── Block           (declarations)
 │   ├── ExpressionStmt  (expression)
+│   ├── PrintStmt       (arguments, sep, end, fmt)   # v1.1.0
 │   ├── IfStmt          (condition, then_block, else_block?)
 │   ├── WhileStmt       (condition, body)
+│   ├── ForStmt         (variable, iterable, body)   # v1.2.0
 │   ├── ReturnStmt      (value)
 │   ├── BreakStmt
 │   ├── ContinueStmt
@@ -202,6 +248,8 @@ Node (abstract)
 │   ├── VarDecl         (name, type_annotation, initializer)
 │   ├── ConstDecl       (name, type_annotation, initializer)
 │   ├── FnDecl          (name, params, return_type, body)
+│   ├── StructDecl      (name, fields)               # v1.5.0
+│   ├── ImportDecl      (module, path)               # v1.6.0
 │   └── Param           (name, type_annotation)
 │
 └── Program             (declarations)
@@ -257,12 +305,15 @@ class Span:
 
 ### 5.1 Sistema de Tipos
 
-| Tipo    | Descrição       | Literais        |
-| ------- | --------------- | --------------- |
-| `int`   | Inteiro         | `42`, `0`, `-1` |
-| `float` | Ponto flutuante | `3.14`, `0.0`   |
-| `bool`  | Booleano        | `true`, `false` |
-| `str`   | String          | `"hello"`       |
+| Tipo         | Descrição       | Literais         |
+| ------------ | --------------- | ---------------- |
+| `int`        | Inteiro         | `42`, `0`, `-1`  |
+| `float`      | Ponto flutuante | `3.14`, `0.0`    |
+| `bool`       | Booleano        | `true`, `false`  |
+| `str`        | String          | `"hello"`        |
+| `[T]`        | Lista           | `[1, 2, 3]`      |
+| `Dict[K, V]` | Dicionário      | `{ "a": 1 }`     |
+| `StructName` | Struct definida | `Point { x: 0 }` |
 
 **Decisão FROZEN:** O sistema de tipos é **fechado**. Não há tipo `void`/`unit`.
 
@@ -409,53 +460,53 @@ src/quasar/
 
 ## 7. Status das Fases
 
-| Fase                         | Status   | Testes | Observação               |
-| ---------------------------- | -------- | ------ | ------------------------ |
-| Phase 0 — Project Definition | ✅ FROZEN | —      | Definições base          |
-| Phase 1 — Grammar Design     | ✅ FROZEN | —      | Sintaxe sem `;`          |
-| Phase 2 — AST Definition     | ✅ FROZEN | —      | Hierarquia completa      |
-| Lexer Implementation         | ✅ FROZEN | 93     | Tokenização              |
-| Parser Implementation        | ✅ FROZEN | 87     | AST generation           |
-| Phase 3 — Semantic Analysis  | ✅ FROZEN | 47     | Validação completa       |
-| Phase 4 — Code Generation    | 🔄 Testes | 68     | Aguardando implementação |
+| Fase                         | Status   | Testes | Observação             |
+| ---------------------------- | -------- | ------ | ---------------------- |
+| Phase 0 — Project Definition | ✅ FROZEN | —      | Definições base        |
+| Phase 1 — Grammar Design     | ✅ FROZEN | —      | Sintaxe sem `;`        |
+| Phase 2 — AST Definition     | ✅ FROZEN | —      | Hierarquia completa    |
+| Lexer Implementation         | ✅ FROZEN | 103    | Tokenização            |
+| Parser Implementation        | ✅ FROZEN | 105    | AST generation         |
+| Phase 3 — Semantic Analysis  | ✅ FROZEN | 100    | Validação completa     |
+| Phase 4 — Code Generation    | ✅ FROZEN | 118    | Python emission        |
+| Phase 5 — Print Statement    | ✅ FROZEN | 90     | E2E tests              |
+| Phase 6 — Lists & Ranges     | ✅ FROZEN | 159    | list, range, for       |
+| Phase 7 — I/O & Casting      | ✅ FROZEN | 66     | input, int/float/str   |
+| Phase 8 — Structs            | ✅ FROZEN | 46     | User-defined types     |
+| Phase 9 — Modules & Imports  | ✅ FROZEN | 31     | Python + local imports |
+| Phase 10 — Dictionaries      | ✅ FROZEN | 86     | Dict[K, V]             |
+| Phase 11 — Primitive Methods | ✅ FROZEN | 81     | Native methods         |
 
-**Total de testes:** 295 (227 passando + 68 pendentes)
+**Total de testes:** 1022
 
 ---
 
-## 8. Próximos Passos Autorizados
+## 8. Status Atual
 
-### 8.1 Implementação do Code Generator
+### 8.1 Versão Atual
 
-**Status:** AUTORIZADO após aprovação da suíte de testes
+**Versão:** v1.8.0 "Pulsar" — Phase 11 Complete ✅
 
-**Escopo:**
-- Transpilação AST → Python 3.10+
-- Saída determinística
-- Indentação de 4 espaços
-- Sem dependências externas no código gerado
+Todas as fases principais estão implementadas e FROZEN. O compilador está funcional com:
+- 1022 testes passando
+- 23 métodos nativos para tipos primitivos
+- Suporte completo a módulos, structs, listas e dicionários
 
-**Mapeamento Quasar → Python:**
+### 8.2 Mapeamento Quasar → Python
 
-| Quasar                        | Python                 |
-| ----------------------------- | ---------------------- |
-| `let x: int = 1`              | `x = 1`                |
-| `const PI: float = 3.14`      | `PI = 3.14`            |
-| `fn f(a: int) -> int { ... }` | `def f(a):\n    ...`   |
-| `if cond { ... }`             | `if cond:\n    ...`    |
-| `while cond { ... }`          | `while cond:\n    ...` |
-| `return expr`                 | `return expr`          |
-| `break`                       | `break`                |
-| `continue`                    | `continue`             |
-| `true` / `false`              | `True` / `False`       |
-| `&&` / `                      |                        | ` / `!` | `and` / `or` / `not` |
-
-### 8.2 Restrições
-
-1. Nenhuma modificação em fases FROZEN
-2. Testes existentes não podem ser alterados para acomodar implementação
-3. Todos os 68 testes de codegen devem passar ao final
-4. Qualquer lacuna detectada deve ser reportada, não corrigida
+| Quasar                        | Python                   |
+| ----------------------------- | ------------------------ |
+| `let x: int = 1`              | `x = 1`                  |
+| `const PI: float = 3.14`      | `PI = 3.14`              |
+| `fn f(a: int) -> int { ... }` | `def f(a):\n    ...`     |
+| `if cond { ... }`             | `if cond:\n    ...`      |
+| `while cond { ... }`          | `while cond:\n    ...`   |
+| `for i in 0..10 { ... }`      | `for i in range(0, 10):` |
+| `s.trim()`                    | `s.strip()`              |
+| `l.push(v)`                   | `l.append(v)`            |
+| `d.has_key(k)`                | `(k in d)`               |
+| `true` / `false`              | `True` / `False`         |
+| `&&` / `\|\|` / `!`           | `and` / `or` / `not`     |
 
 ---
 
@@ -532,6 +583,11 @@ final = countdown(LIMIT)
 | E0200  | Control   | 'break' outside of loop                                      |
 | E0201  | Control   | 'continue' outside of loop                                   |
 | E0302  | Control   | return type mismatch: expected {expected}, got {actual}      |
+| E1100  | Method    | generic type mismatch in method call                         |
+| E1102  | Method    | join() only valid on [str] lists                             |
+| E1105  | Method    | unknown method '{method}' on type '{type}'                   |
+| E1106  | Method    | method '{method}' expects {n} arguments, got {m}             |
+| E1107  | Method    | method argument type mismatch                                |
 
 ---
 
