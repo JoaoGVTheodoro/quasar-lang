@@ -73,8 +73,28 @@ class DictType:
         return f"DictType({self.key_type!r}, {self.value_type!r})"
 
 
+@dataclass(frozen=True)
+class EnumType:
+    """
+    Represents an enum type in Quasar.
+    
+    Phase 12: User-defined enumerated types.
+    
+    Examples:
+    - Color (enum with Red, Green, Blue variants)
+    - Status (enum with Pending, Active, Completed variants)
+    """
+    name: str
+    
+    def __str__(self) -> str:
+        return self.name
+    
+    def __repr__(self) -> str:
+        return f"EnumType({self.name!r})"
+
+
 # Type alias for all Quasar types
-QuasarType = Union[PrimitiveType, ListType, DictType]
+QuasarType = Union[PrimitiveType, ListType, DictType, EnumType]
 
 
 # =============================================================================

@@ -17,6 +17,7 @@ from quasar.ast import (
     StructDecl,
     StructField,
     ImportDecl,
+    EnumDecl,
     # Statements
     Block,
     ExpressionStmt,
@@ -86,8 +87,19 @@ class CodeGenerator:
         self._lines = []
         
         # Add imports if necessary
+        imports_needed = []
+        
+        # Phase 12: Check for enum import
+        if any(isinstance(d, EnumDecl) for d in program.declarations):
+            imports_needed.append("from enum import Enum")
+        
+        # Struct dataclass import
         if any(isinstance(d, StructDecl) for d in program.declarations):
-            self._lines.append("from dataclasses import dataclass")
+            imports_needed.append("from dataclasses import dataclass")
+        
+        if imports_needed:
+            for imp in imports_needed:
+                self._lines.append(imp)
             self._lines.append("")
         
         for i, decl in enumerate(program.declarations):
@@ -131,6 +143,8 @@ class CodeGenerator:
             self._generate_fn_decl(decl)
         elif isinstance(decl, StructDecl):
             self._generate_struct_decl(decl)
+        elif isinstance(decl, EnumDecl):
+            self._generate_enum_decl(decl)
         elif isinstance(decl, ImportDecl):
             self._generate_import_decl(decl)
         elif isinstance(decl, ExpressionStmt):
@@ -474,6 +488,37 @@ class CodeGenerator:
             for field in decl.fields:
                 type_str = self._type_to_python(field.type_annotation)
                 self._emit(f"{field.name}: {type_str}")
+        
+        self._indent_level -= 1
+
+    # =========================================================================
+    # Phase 12: Enum Code Generation
+    # =========================================================================
+
+    def _generate_enum_decl(self, decl: EnumDecl) -> None:
+        """
+        Generate Python Enum class.
+        
+        Quasar:
+            enum Color {
+                Red,
+                Green,
+                Blue
+            }
+        
+        Python:
+            class Color(Enum):
+                Red = "Red"
+                Green = "Green"
+                Blue = "Blue"
+        """
+        self._emit(f"class {decl.name}(Enum):")
+        
+        self._indent_level += 1
+        
+        for variant in decl.variants:
+            # Use string values for enum variants
+            self._emit(f'{variant.name} = "{variant.name}"')
         
         self._indent_level -= 1
 

@@ -118,6 +118,8 @@ from quasar.ast.declarations import (
     StructDecl,
     StructField,
     ImportDecl,
+    EnumVariant,
+    EnumDecl,
 )
 from quasar.ast.program import Program
 
@@ -280,6 +282,8 @@ class Parser:
             return self._fn_decl()
         if self._check(TokenType.STRUCT):
             return self._struct_decl()
+        if self._check(TokenType.ENUM):
+            return self._enum_decl()
         if self._check(TokenType.IMPORT):
             return self._import_decl()
         return self._statement()
@@ -1282,6 +1286,64 @@ class Parser:
             name=name,
             type_annotation=type_ann,
             span=self._merge_spans(start, type_span),
+        )
+
+    # =========================================================================
+    # Phase 12: Enum Declarations
+    # =========================================================================
+
+    def _enum_decl(self) -> EnumDecl:
+        """
+        Parse an enum declaration.
+        
+        enum_decl → "enum" IDENTIFIER "{" enum_variants "}"
+        enum_variants → enum_variant ("," enum_variant)* ","?
+        """
+        start = self._advance()  # consume 'enum'
+        
+        name_token = self._consume(TokenType.IDENTIFIER, "expected enum name after 'enum'")
+        name = name_token.lexeme
+        
+        self._consume(TokenType.LBRACE, "expected '{' after enum name")
+        
+        # Parse variants
+        variants: list[EnumVariant] = []
+        
+        if not self._check(TokenType.RBRACE):
+            # At least one variant
+            variants.append(self._enum_variant())
+            
+            while self._match(TokenType.COMMA):
+                # Allow trailing comma
+                if self._check(TokenType.RBRACE):
+                    break
+                variants.append(self._enum_variant())
+        
+        end = self._consume(TokenType.RBRACE, "expected '}' after enum variants")
+        
+        # Validate at least one variant
+        if len(variants) == 0:
+            raise ParserError(
+                message="enum must have at least one variant",
+                span=self._merge_spans(start.span, end.span),
+            )
+        
+        return EnumDecl(
+            name=name,
+            variants=variants,
+            span=self._merge_spans(start.span, end.span),
+        )
+
+    def _enum_variant(self) -> EnumVariant:
+        """
+        Parse a single enum variant.
+        
+        enum_variant → IDENTIFIER
+        """
+        token = self._consume(TokenType.IDENTIFIER, "expected variant name")
+        return EnumVariant(
+            name=token.lexeme,
+            span=token.span,
         )
 
     def _struct_init(self, name_token: Token) -> StructInitExpr:

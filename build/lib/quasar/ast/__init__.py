@@ -62,6 +62,7 @@ from quasar.ast.types import (
     PrimitiveType,
     ListType,
     DictType,
+    EnumType,
     INT,
     FLOAT,
     BOOL,
@@ -127,6 +128,8 @@ from quasar.ast.declarations import (
     StructDecl,
     ImportDecl,
     StructField,
+    EnumVariant,
+    EnumDecl,
 )
 
 # Program
@@ -137,6 +140,22 @@ __all__ = [
     "Span",
     # Types
     "TypeAnnotation",
+    "QuasarType",
+    "PrimitiveType",
+    "ListType",
+    "DictType",
+    "EnumType",
+    "INT",
+    "FLOAT",
+    "BOOL",
+    "STR",
+    "VOID",
+    "ANY",
+    "list_of",
+    "is_primitive",
+    "is_list",
+    "is_dict",
+    "is_hashable",
     # Operators
     "BinaryOp",
     "UnaryOp",
@@ -184,6 +203,8 @@ __all__ = [
     "StructDecl",
     "ImportDecl",
     "StructField",
+    "EnumVariant",
+    "EnumDecl",
     # Program
     "Program",
 ]

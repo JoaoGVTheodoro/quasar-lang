@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Optional
 
 # Version info
-__version__ = "1.8.0"
-__codename__ = "pulsar"
+__version__ = "1.9.1"
+__codename__ = "prism hardened"
 
 
 # Exit codes

@@ -41,6 +41,7 @@ class TokenType(Enum):
     
     STRUCT = auto()     # struct
     IMPORT = auto()     # import
+    ENUM = auto()       # enum (Phase 12)
 
     # === Type Keywords (5) ===
     INT = auto()        # int
@@ -107,6 +108,7 @@ KEYWORDS: dict[str, TokenType] = {
     # Language keywords
     "struct": TokenType.STRUCT,
     "import": TokenType.IMPORT,
+    "enum": TokenType.ENUM,       # Phase 12
     "let": TokenType.LET,
     "const": TokenType.CONST,
     "fn": TokenType.FN,
