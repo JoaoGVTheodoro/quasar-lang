@@ -10,7 +10,7 @@ let h: float = math.sqrt(16.0)
 print("Result: {}", h)
 ```
 
-**Status:** v1.9.0 "Prism" — Phase 12 Complete ✅ (1082 tests)
+**Status:** v1.9.1 "Prism Hardened" — Phase 12 Complete + Core Hardening ✅ (1119 tests)
 
 ## ✨ Features
 
@@ -153,7 +153,7 @@ let name: str = input()
 
 ```bash
 pytest tests/ -v
-# 1082 tests passing
+# 1119 tests passing
 ```
 
 ## 📁 Examples
@@ -178,7 +178,8 @@ pytest tests/ -v
 | v1.6.0 - entropy     | Modules & Imports        |
 | v1.7.0 - supernova   | Dictionaries             |
 | v1.8.0 - pulsar      | Native Methods           |
-| **v1.9.0 - prism**   | **Enums**                |
+| v1.9.0 - prism       | Enums                    |
+| **v1.9.1 - hardened**| **E0303/E0304 hardening**|
 
 ## 📄 License
 
