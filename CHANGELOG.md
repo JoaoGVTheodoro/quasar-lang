@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.10.0] — 2026-01-16 — "Script"
+
+### ✨ Added
+- **File System API** (`File` static object)
+  - Operations: `read`, `write`, `append`, `exists`, `delete`
+  - **Safety:** Enforced UTF-8 encoding on all operations
+- **Environment API** (`Env` static object)
+  - Operations: `get`, `set`, `args`, `cwd`
+  - **Safety:** `Env.get` requires default value
+  - **Safety:** `Env.args()` returns a defensive copy of arguments
+
+### 🛡️ Hardening
+- **Namespace Protection:** Internal imports aliased as `_q_os`/`_q_sys` to prevent shadowing conflicts
+- **Reserved Identifiers:** `File` and `Env` are protected keywords (E0205)
+
+### 📊 Test Summary
+| Component | v1.9.1   | Added   | v1.10.0  |
+| --------- | -------- | ------- | -------- |
+| Phase 13  | —        | +51     | 51       |
+| **Total** | **1137** | **+51** | **1188** |
+✅ Veredito Final
+
+---
+
 ## [1.9.1] — 2026-01-16 — "Prism Hardened"
 
 ### 🔒 Hardening
@@ -30,10 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 📊 Test Summary
 
-| Component  | v1.9.0   | Added    | v1.9.1   |
-| ---------- | -------- | -------- | -------- |
-| Hardening  | 25       | +30      | 55       |
-| **Total**  | **1107** | **+30**  | **1137** |
+| Component | v1.9.0   | Added   | v1.9.1   |
+| --------- | -------- | ------- | -------- |
+| Hardening | 25       | +30     | 55       |
+| **Total** | **1107** | **+30** | **1137** |
 
 ---
 

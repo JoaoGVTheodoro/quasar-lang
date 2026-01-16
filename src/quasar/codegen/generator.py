@@ -73,6 +73,104 @@ class CodeGenerator:
         self._indent_level = 0
         self._lines: List[str] = []
     
+    def _uses_system_io(self, program: Program) -> bool:
+        """Check if program uses File or Env static objects."""
+        # Walk through all declarations looking for MemberAccessExpr or MethodCallExpr
+        # where the object is an Identifier named "File" or "Env"
+        
+        def check_expr(expr) -> bool:
+            if expr is None:
+                return False
+            
+            # Check MemberAccessExpr (File.xyz or Env.xyz)
+            if isinstance(expr, MemberAccessExpr):
+                if isinstance(expr.object, Identifier):
+                    if expr.object.name in ("File", "Env"):
+                        return True
+                return check_expr(expr.object)
+            
+            # Check MethodCallExpr (File.read() or Env.get())
+            if isinstance(expr, MethodCallExpr):
+                if isinstance(expr.object, Identifier):
+                    if expr.object.name in ("File", "Env"):
+                        return True
+                if check_expr(expr.object):
+                    return True
+                for arg in expr.arguments:
+                    if check_expr(arg):
+                        return True
+            
+            # Recurse into other expression types
+            if isinstance(expr, BinaryExpr):
+                return check_expr(expr.left) or check_expr(expr.right)
+            if isinstance(expr, UnaryExpr):
+                return check_expr(expr.operand)
+            if isinstance(expr, CallExpr):
+                if check_expr(expr.callee):
+                    return True
+                for arg in expr.arguments:
+                    if check_expr(arg):
+                        return True
+            if isinstance(expr, IndexExpr):
+                return check_expr(expr.target) or check_expr(expr.index)
+            if isinstance(expr, ListLiteral):
+                for elem in expr.elements:
+                    if check_expr(elem):
+                        return True
+            if isinstance(expr, DictLiteral):
+                for entry in expr.entries:
+                    if check_expr(entry.key) or check_expr(entry.value):
+                        return True
+            
+            return False
+        
+        def check_decl(decl) -> bool:
+            if isinstance(decl, VarDecl):
+                return check_expr(decl.initializer)
+            if isinstance(decl, ConstDecl):
+                return check_expr(decl.initializer)
+            if isinstance(decl, FnDecl):
+                return check_block(decl.body)
+            if isinstance(decl, ExpressionStmt):
+                return check_expr(decl.expression)
+            if isinstance(decl, PrintStmt):
+                for arg in decl.arguments:
+                    if check_expr(arg):
+                        return True
+            if isinstance(decl, IfStmt):
+                if check_expr(decl.condition):
+                    return True
+                if check_block(decl.then_block):
+                    return True
+                if decl.else_block and check_block(decl.else_block):
+                    return True
+            if isinstance(decl, WhileStmt):
+                if check_expr(decl.condition):
+                    return True
+                if check_block(decl.body):
+                    return True
+            if isinstance(decl, ForStmt):
+                if check_expr(decl.iterable):
+                    return True
+                if check_block(decl.body):
+                    return True
+            if isinstance(decl, ReturnStmt):
+                return check_expr(decl.value)
+            if isinstance(decl, AssignStmt):
+                return check_expr(decl.value)
+            return False
+        
+        def check_block(block: Block) -> bool:
+            for d in block.declarations:
+                if check_decl(d):
+                    return True
+            return False
+        
+        for decl in program.declarations:
+            if check_decl(decl):
+                return True
+        return False
+    
     def generate(self, program: Program) -> str:
         """
         Generate Python code from a Quasar AST.
@@ -88,6 +186,11 @@ class CodeGenerator:
         
         # Add imports if necessary
         imports_needed = []
+        
+        # Phase 13: System interaction imports (only when File/Env used)
+        if self._uses_system_io(program):
+            imports_needed.append("import os as _q_os")
+            imports_needed.append("import sys as _q_sys")
         
         # Phase 12: Check for enum import
         if any(isinstance(d, EnumDecl) for d in program.declarations):
@@ -611,6 +714,29 @@ class CodeGenerator:
         """
         obj = self._generate_expression(expr.object)
         args = [self._generate_expression(arg) for arg in expr.arguments]
+        
+        # === Phase 13: Static objects (File, Env) ===
+        if isinstance(expr.object, Identifier):
+            if expr.object.name == "File":
+                if expr.method == "exists":
+                    return f"_q_os.path.exists({args[0]})"
+                elif expr.method == "read":
+                    return f"open({args[0]}, 'r', encoding='utf-8').read()"
+                elif expr.method == "write":
+                    return f"open({args[0]}, 'w', encoding='utf-8').write({args[1]})"
+                elif expr.method == "append":
+                    return f"open({args[0]}, 'a', encoding='utf-8').write({args[1]})"
+                elif expr.method == "delete":
+                    return f"_q_os.remove({args[0]})"
+            elif expr.object.name == "Env":
+                if expr.method == "get":
+                    return f"_q_os.environ.get({args[0]}, {args[1]})"
+                elif expr.method == "set":
+                    return f"_q_os.environ.__setitem__({args[0]}, {args[1]})"
+                elif expr.method == "args":
+                    return "list(_q_sys.argv)"
+                elif expr.method == "cwd":
+                    return "_q_os.getcwd()"
         
         # === String special cases (11.1) ===
         if expr.method == "len":
