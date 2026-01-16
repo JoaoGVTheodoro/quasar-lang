@@ -47,6 +47,7 @@ from quasar.ast import (
     MemberAccessExpr,
     DictEntry,
     DictLiteral,
+    MethodCallExpr,
     # Types and operators
     BinaryOp,
     UnaryOp,
@@ -332,6 +333,8 @@ class CodeGenerator:
             return self._generate_member_access_expr(expr)
         elif isinstance(expr, DictLiteral):
             return self._generate_dict_literal(expr)
+        elif isinstance(expr, MethodCallExpr):
+            return self._generate_method_call_expr(expr)
         else:
             return ""
     
@@ -527,3 +530,78 @@ class CodeGenerator:
         else:
             # Python stdlib import
             self._emit(f"import {decl.module}")
+
+    # =========================================================================
+    # Method Call Code Generation (Phase 11.0/11.1/11.2)
+    # =========================================================================
+
+    def _generate_method_call_expr(self, expr: MethodCallExpr) -> str:
+        """
+        Generate method call expression (Phase 11.0/11.1/11.2).
+        
+        Special cases (Python differs from Quasar):
+        
+        String (11.1):
+        - len() -> len(obj)
+        - trim() -> obj.strip()
+        - contains(sub) -> (sub in obj)
+        - to_int() -> int(obj)
+        - to_float() -> float(obj)
+        - starts_with(prefix) -> obj.startswith(prefix)
+        - ends_with(suffix) -> obj.endswith(suffix)
+        
+        List (11.2):
+        - push(v) -> obj.append(v)
+        - contains(v) -> (v in obj)
+        - join(sep) -> sep.join(obj)  # Note: inverted!
+        
+        Dict (11.2):
+        - has_key(k) -> (k in obj)
+        - remove(k) -> obj.pop(k, None)
+        - keys() -> list(obj.keys())
+        - values() -> list(obj.values())
+        
+        Default case:
+        - obj.method(args) -> obj.method(args)
+        """
+        obj = self._generate_expression(expr.object)
+        args = [self._generate_expression(arg) for arg in expr.arguments]
+        
+        # === String special cases (11.1) ===
+        if expr.method == "len":
+            return f"len({obj})"
+        elif expr.method == "trim":
+            return f"{obj}.strip()"
+        elif expr.method == "to_int":
+            return f"int({obj})"
+        elif expr.method == "to_float":
+            return f"float({obj})"
+        elif expr.method == "starts_with":
+            return f"{obj}.startswith({args[0]})"
+        elif expr.method == "ends_with":
+            return f"{obj}.endswith({args[0]})"
+        
+        # === List special cases (11.2) ===
+        elif expr.method == "push":
+            return f"{obj}.append({args[0]})"
+        elif expr.method == "join":
+            # Quasar: ["a", "b"].join(",") -> Python: ",".join(["a", "b"])
+            return f"{args[0]}.join({obj})"
+        
+        # === Dict special cases (11.2) ===
+        elif expr.method == "has_key":
+            return f"({args[0]} in {obj})"
+        elif expr.method == "remove":
+            return f"{obj}.pop({args[0]}, None)"
+        elif expr.method == "keys":
+            return f"list({obj}.keys())"
+        elif expr.method == "values":
+            return f"list({obj}.values())"
+        
+        # === Shared: contains works for both string and list ===
+        elif expr.method == "contains":
+            return f"({args[0]} in {obj})"
+        
+        # Default: obj.method(args) — works for upper, lower, split, replace, pop, reverse, clear, get
+        args_str = ", ".join(args)
+        return f"{obj}.{expr.method}({args_str})"

@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Optional
 
 # Version info
-__version__ = "1.7.0"
-__codename__ = "supernova"
+__version__ = "1.8.0"
+__codename__ = "pulsar"
 
 
 # Exit codes

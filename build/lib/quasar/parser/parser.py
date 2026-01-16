@@ -94,6 +94,7 @@ from quasar.ast.expressions import (
     MemberAccessExpr,
     DictEntry,
     DictLiteral,
+    MethodCallExpr,
 )
 from quasar.ast.statements import (
     Block,
@@ -974,14 +975,31 @@ class Parser:
                     span=self._merge_spans(expr.span, end.span),
                 )
             elif self._match(TokenType.DOT):
-                # Member access (Phase 8.2)
+                # Member access or method call (Phase 8.2 / 11.0)
                 member_token = self._consume(TokenType.IDENTIFIER, "expected field name after '.'")
                 
-                expr = MemberAccessExpr(
-                    object=expr,
-                    member=member_token.lexeme,
-                    span=self._merge_spans(expr.span, member_token.span),
-                )
+                # Lookahead: if next token is '(', it's a method call
+                if self._check(TokenType.LPAREN):
+                    # Method call (Phase 11.0)
+                    self._advance()  # consume '('
+                    arguments: list[Expression] = []
+                    if not self._check(TokenType.RPAREN):
+                        arguments = self._arg_list()
+                    end = self._consume(TokenType.RPAREN, "expected ')' after method arguments")
+                    
+                    expr = MethodCallExpr(
+                        object=expr,
+                        method=member_token.lexeme,
+                        arguments=arguments,
+                        span=self._merge_spans(expr.span, end.span),
+                    )
+                else:
+                    # Member access (Phase 8.2)
+                    expr = MemberAccessExpr(
+                        object=expr,
+                        member=member_token.lexeme,
+                        span=self._merge_spans(expr.span, member_token.span),
+                    )
             else:
                 break
         

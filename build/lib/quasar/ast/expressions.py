@@ -468,3 +468,35 @@ class DictLiteral(Expression):
             f"entries={self.entries!r}, "
             f"span={self.span!r})"
         )
+
+
+@dataclass
+class MethodCallExpr(Expression):
+    """
+    Method call expression on primitive types (Phase 11.0).
+    
+    Examples:
+        "hello".upper()
+        s.len()
+        nums.push(42)
+        text.split(",")
+    
+    Attributes:
+        object: The expression on which the method is called.
+        method: The method name.
+        arguments: List of argument expressions (excluding self).
+        span: Source location.
+    """
+    object: Expression
+    method: str
+    arguments: list[Expression]
+    span: Span
+    
+    def __repr__(self) -> str:
+        return (
+            f"MethodCallExpr("
+            f"object={self.object!r}, "
+            f"method={self.method!r}, "
+            f"arguments={self.arguments!r}, "
+            f"span={self.span!r})"
+        )

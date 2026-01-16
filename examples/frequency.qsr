@@ -1,48 +1,44 @@
-# frequency.qsr - Vote Counting with Dictionaries
-# Demonstrates Dict[K, V] usage in Quasar v1.7.0
+# v1.8.0 Example: Clean Frequency Counter
+# Demonstrates: Primitive Methods (str.split, dict.has_key, list.join)
 
-# Input: List of votes
-let votes: [str] = ["blue", "red", "blue", "green", "red", "blue", "green", "blue"]
+fn main() -> void {
+    print("=== Text Analyzer v1.8.0 ===")
 
-# Storage: Vote counts dictionary
-let counts: Dict[str, int] = {}
+    # 1. String Manipulation (New!)
+    let raw_input: str = "  blue,red, blue ,green,red,  blue  "
+    print("Raw Input: '{}'", raw_input)
 
-# Helper function to check if key exists
-# (Linear search workaround until haskey() is implemented)
-fn contains(key: str, dict_keys: [str]) -> bool {
-    for k in 0..len(dict_keys) {
-        if dict_keys[k] == key {
-            return true
+    # Chaining methods: trim whitespace -> to lowercase -> split by comma
+    let votes: [str] = raw_input.trim().lower().split(",")
+    print("Parsed {} votes.", votes.len())
+
+    # 2. Dictionary Logic (New: has_key!)
+    let counts: Dict[str, int] = {}
+
+    for i in 0..votes.len() {
+        let vote: str = votes[i].trim() # Clean individual items
+        
+        if vote.len() > 0 {
+            if counts.has_key(vote) {
+                counts[vote] = counts[vote] + 1
+            } else {
+                counts[vote] = 1
+            }
         }
     }
-    return false
-}
 
-# Process votes
-for i in 0..len(votes) {
-    let vote: str = votes[i]
-    let existing_keys: [str] = keys(counts)
+    # 3. Reporting (New: keys() method)
+    let parties: [str] = counts.keys()
+    print("Results:")
     
-    if contains(vote, existing_keys) {
-        # Key exists: increment count
-        counts[vote] = counts[vote] + 1
-    } else {
-        # New key: initialize to 1
-        counts[vote] = 1
+    for p in parties {
+        let count: int = counts.get(p, 0)
+        print(" - {}: {} votes", p, count)
     }
+
+    # 4. List Manipulation (New: join)
+    let summary: str = parties.join(" | ")
+    print("Parties present: [{}]", summary)
 }
 
-# Output results
-print("=== Vote Results ===")
-print("Blue votes: {}", counts["blue"])
-print("Red votes: {}", counts["red"])
-print("Green votes: {}", counts["green"])
-print("Total unique options: {}", len(counts))
-
-# Display all counts
-print("\n=== All Counts ===")
-let all_keys: [str] = keys(counts)
-for i in 0..len(all_keys) {
-    let key: str = all_keys[i]
-    print("{}: {}", key, counts[key])
-}
+main()

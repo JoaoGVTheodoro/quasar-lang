@@ -51,6 +51,7 @@ from quasar.ast import (
     MemberAccessExpr,
     DictEntry,
     DictLiteral,
+    MethodCallExpr,
     # Types and operators
     TypeAnnotation,
     QuasarType,
@@ -72,6 +73,81 @@ from quasar.ast import (
 )
 from quasar.semantic.errors import SemanticError
 from quasar.semantic.symbols import Symbol, ModuleSymbol, SymbolTable
+from dataclasses import dataclass
+
+
+# =============================================================================
+# Primitive Method Registry (Phase 11.0)
+# =============================================================================
+
+
+@dataclass
+class MethodSignature:
+    """
+    Signature for a primitive method.
+    
+    Attributes:
+        params: List of (name, type) tuples for method parameters.
+        returns: Return type of the method.
+    """
+    params: list[tuple[str, QuasarType]]
+    returns: QuasarType
+
+
+# Type markers for generic types (resolved at call site)
+_LIST_ELEMENT = "__LIST_ELEMENT__"
+_DICT_KEY = "__DICT_KEY__"
+_DICT_VALUE = "__DICT_VALUE__"
+# Return type markers for methods that return lists
+_LIST_OF_DICT_KEYS = "__LIST_OF_DICT_KEYS__"
+_LIST_OF_DICT_VALUES = "__LIST_OF_DICT_VALUES__"
+
+# Sentinel for VOID return (methods that don't return a value)
+_VOID_MARKER = PrimitiveType("void")
+
+
+# Registry of primitive methods: type_name -> method_name -> signature
+# For generic types (list, dict), we use string keys and resolve at call site
+PRIMITIVE_METHODS: dict[str, dict[str, MethodSignature]] = {
+    # String methods (Phase 11.1)
+    "str": {
+        # Infrastructure (11.0)
+        "len": MethodSignature(params=[], returns=INT),
+        # Manipulation (11.1)
+        "upper": MethodSignature(params=[], returns=STR),
+        "lower": MethodSignature(params=[], returns=STR),
+        "trim": MethodSignature(params=[], returns=STR),
+        "replace": MethodSignature(params=[("old", STR), ("new", STR)], returns=STR),
+        "split": MethodSignature(params=[("sep", STR)], returns=ListType(STR)),
+        # Verification (11.1)
+        "contains": MethodSignature(params=[("sub", STR)], returns=BOOL),
+        "starts_with": MethodSignature(params=[("prefix", STR)], returns=BOOL),
+        "ends_with": MethodSignature(params=[("suffix", STR)], returns=BOOL),
+        # Conversion (11.1)
+        "to_int": MethodSignature(params=[], returns=INT),
+        "to_float": MethodSignature(params=[], returns=FLOAT),
+    },
+    # List methods (Phase 11.2 - generic, element type T resolved at call site)
+    "list": {
+        "len": MethodSignature(params=[], returns=INT),
+        "push": MethodSignature(params=[("value", _LIST_ELEMENT)], returns=VOID),
+        "pop": MethodSignature(params=[], returns=_LIST_ELEMENT),
+        "contains": MethodSignature(params=[("value", _LIST_ELEMENT)], returns=BOOL),
+        "join": MethodSignature(params=[("sep", STR)], returns=STR),  # Only for [str]
+        "reverse": MethodSignature(params=[], returns=VOID),
+        "clear": MethodSignature(params=[], returns=VOID),
+    },
+    # Dict methods (Phase 11.2 - generic, key K and value V resolved at call site)
+    "dict": {
+        "len": MethodSignature(params=[], returns=INT),
+        "has_key": MethodSignature(params=[("key", _DICT_KEY)], returns=BOOL),
+        "get": MethodSignature(params=[("key", _DICT_KEY), ("default", _DICT_VALUE)], returns=_DICT_VALUE),
+        "remove": MethodSignature(params=[("key", _DICT_KEY)], returns=VOID),
+        "clear": MethodSignature(params=[], returns=VOID),
+        "keys": MethodSignature(params=[], returns=_LIST_OF_DICT_KEYS),
+        "values": MethodSignature(params=[], returns=_LIST_OF_DICT_VALUES),
+    },
+}
 
 
 class SemanticAnalyzer:
@@ -677,6 +753,8 @@ class SemanticAnalyzer:
             return self._get_member_access_expr_type(expr)
         elif isinstance(expr, DictLiteral):
             return self._get_dict_literal_type(expr)
+        elif isinstance(expr, MethodCallExpr):
+            return self._get_method_call_expr_type(expr)
         else:
             # Should not reach here with valid AST
             raise SemanticError(
@@ -1509,3 +1587,154 @@ class SemanticAnalyzer:
             name=module_name,
             is_local=decl.is_local,
         )
+
+    # =========================================================================
+    # Method Call Analysis (Phase 11.0)
+    # =========================================================================
+
+    def _get_method_call_expr_type(self, expr: MethodCallExpr) -> QuasarType:
+        """
+        Get the type of a method call expression (Phase 11.0/11.2).
+        
+        Checks:
+        - E1100: Generic type mismatch (e.g., push("str") on [int])
+        - E1102: join() only works on [str]
+        - E1105: Method does not exist for type
+        - E1106: Incorrect number of arguments
+        - E1107: Argument type mismatch
+        
+        Returns the return type of the method, resolving generic markers.
+        
+        Special case: If the object is a module (type starts with __module__),
+        treat this as a function call and return ANY type.
+        """
+        # Get the type of the object
+        obj_type = self._get_expression_type(expr.object)
+        
+        # Special case: module function calls (e.g., math.sqrt())
+        # Module types are PrimitiveType("__module__<name>")
+        if isinstance(obj_type, PrimitiveType):
+            type_name = obj_type.name if hasattr(obj_type, 'name') else str(obj_type)
+            if type_name.startswith("__module__"):
+                # This is a module function call, validate arguments
+                for arg in expr.arguments:
+                    self._get_expression_type(arg)  # Validate each argument
+                return ANY  # Module functions return ANY
+        
+        # Determine the type category for method lookup
+        if obj_type == STR:
+            type_key = "str"
+        elif isinstance(obj_type, ListType):
+            type_key = "list"
+        elif isinstance(obj_type, DictType):
+            type_key = "dict"
+        else:
+            raise SemanticError(
+                code="E1105",
+                message=f"type '{obj_type}' has no methods",
+                span=expr.span,
+            )
+        
+        # Look up the method in the registry
+        if type_key not in PRIMITIVE_METHODS:
+            raise SemanticError(
+                code="E1105",
+                message=f"type '{obj_type}' has no methods",
+                span=expr.span,
+            )
+        
+        methods = PRIMITIVE_METHODS[type_key]
+        if expr.method not in methods:
+            raise SemanticError(
+                code="E1105",
+                message=f"type '{obj_type}' has no method '{expr.method}'",
+                span=expr.span,
+            )
+        
+        signature = methods[expr.method]
+        
+        # Check argument count
+        expected_count = len(signature.params)
+        actual_count = len(expr.arguments)
+        if actual_count != expected_count:
+            raise SemanticError(
+                code="E1106",
+                message=f"method '{expr.method}' expects {expected_count} argument(s), got {actual_count}",
+                span=expr.span,
+            )
+        
+        # Special check: join() only works on [str]
+        if expr.method == "join" and isinstance(obj_type, ListType):
+            if obj_type.element_type != STR:
+                raise SemanticError(
+                    code="E1102",
+                    message=f"join() only works on [str], got [{obj_type.element_type}]",
+                    span=expr.span,
+                )
+        
+        # Type-check arguments, resolving generic markers
+        for i, (param_name, param_type) in enumerate(signature.params):
+            arg_type = self._get_expression_type(expr.arguments[i])
+            
+            # Resolve generic type markers
+            expected_type = self._resolve_generic_type(param_type, obj_type)
+            
+            if not self._types_compatible(expected_type, arg_type):
+                # Use E1100 for generic type mismatches
+                if param_type == _LIST_ELEMENT:
+                    raise SemanticError(
+                        code="E1100",
+                        message=f"method '{expr.method}' expects element type '{expected_type}', got '{arg_type}'",
+                        span=expr.arguments[i].span,
+                    )
+                elif param_type in (_DICT_KEY, _DICT_VALUE):
+                    kind = "key" if param_type == _DICT_KEY else "value"
+                    raise SemanticError(
+                        code="E1100",
+                        message=f"method '{expr.method}' expects {kind} type '{expected_type}', got '{arg_type}'",
+                        span=expr.arguments[i].span,
+                    )
+                else:
+                    raise SemanticError(
+                        code="E1107",
+                        message=f"argument {i + 1} of '{expr.method}' expects '{expected_type}', got '{arg_type}'",
+                        span=expr.arguments[i].span,
+                    )
+        
+        # Resolve return type
+        return self._resolve_generic_type(signature.returns, obj_type)
+
+    def _resolve_generic_type(self, type_marker: QuasarType, obj_type: QuasarType) -> QuasarType:
+        """
+        Resolve generic type markers to concrete types based on the object type.
+        
+        For lists: _LIST_ELEMENT -> element_type
+        For dicts: _DICT_KEY -> key_type, _DICT_VALUE -> value_type
+                   _LIST_OF_DICT_KEYS -> [key_type], _LIST_OF_DICT_VALUES -> [value_type]
+        """
+        if type_marker == _LIST_ELEMENT:
+            if isinstance(obj_type, ListType):
+                return obj_type.element_type
+            return type_marker  # Shouldn't happen
+        
+        elif type_marker == _DICT_KEY:
+            if isinstance(obj_type, DictType):
+                return obj_type.key_type
+            return type_marker
+        
+        elif type_marker == _DICT_VALUE:
+            if isinstance(obj_type, DictType):
+                return obj_type.value_type
+            return type_marker
+        
+        elif type_marker == _LIST_OF_DICT_KEYS:
+            if isinstance(obj_type, DictType):
+                return ListType(obj_type.key_type)
+            return type_marker
+        
+        elif type_marker == _LIST_OF_DICT_VALUES:
+            if isinstance(obj_type, DictType):
+                return ListType(obj_type.value_type)
+            return type_marker
+        
+        return type_marker

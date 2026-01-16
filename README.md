@@ -10,11 +10,11 @@ let h: float = math.sqrt(16.0)
 print("Result: {}", h)
 ```
 
-**Status:** v1.7.0 — Phase 10 Complete ✅ (941 tests)
+**Status:** v1.8.0 "Pulsar" — Phase 11 Complete ✅ (1022 tests)
 
 ## ✨ Features
 
-- **Dictionaries** — `Dict[K, V]` hash maps with `keys()`, `values()` (v1.7.0)
+- **Native Methods** — `s.upper()`, `l.push()`, `d.has_key()` (v1.8.0)
 - **Modules & Imports** — Python stdlib + local `.qsr` files (v1.6.0)
 - **User Defined Types** — Structs with dot notation
 - **Lists & Ranges** — `[int]` arrays and `for i in 0..10` loops
@@ -95,8 +95,12 @@ for i in 0..10 {
 
 ```quasar
 let nums: [int] = [1, 2, 3]
-push(nums, 4)
-print(len(nums))
+nums.push(4)
+print(nums.len())
+print(nums.contains(2))  // true
+
+let words: [str] = ["a", "b"]
+print(words.join(","))   // "a,b"
 ```
 
 ### Structs
@@ -112,9 +116,14 @@ p.x = 100
 ```quasar
 let scores: Dict[str, int] = { "Alice": 100, "Bob": 90 }
 scores["Alice"] = 105
-print(len(scores))     # 2
-let k: [str] = keys(scores)
-let v: [int] = values(scores)
+
+// New in v1.8.0 - Native methods!
+if scores.has_key("Alice") {
+    print("Found!")
+}
+let val: int = scores.get("Charlie", 0)  // Safe access
+let k: [str] = scores.keys()
+let v: [int] = scores.values()
 ```
 
 ### I/O
@@ -128,7 +137,7 @@ let name: str = input()
 
 ```bash
 pytest tests/ -v
-# 941 tests passing
+# 1022 tests passing
 ```
 
 ## 📁 Examples
@@ -142,16 +151,17 @@ pytest tests/ -v
 
 ## 🗺️ Version History
 
-| Version                | Features                 |
-| ---------------------- | ------------------------ |
-| v1.0.0 - big bang      | Core language            |
-| v1.1.0 - void space    | Print statement          |
-| v1.2.0 - dark matter   | Lists, ranges, for loops |
-| v1.3.0 - nebula        | List builtins            |
-| v1.4.0 - galaxy        | Input, type casting      |
-| v1.5.0 - light speed   | Structs                  |
-| v1.6.0 - entropy       | Modules & Imports        |
-| **v1.7.0 - supernova** | **Dictionaries**         |
+| Version              | Features                 |
+| -------------------- | ------------------------ |
+| v1.0.0 - big bang    | Core language            |
+| v1.1.0 - void space  | Print statement          |
+| v1.2.0 - dark matter | Lists, ranges, for loops |
+| v1.3.0 - nebula      | List builtins            |
+| v1.4.0 - galaxy      | Input, type casting      |
+| v1.5.0 - light speed | Structs                  |
+| v1.6.0 - entropy     | Modules & Imports        |
+| v1.7.0 - supernova   | Dictionaries             |
+| **v1.8.0 - pulsar**  | **Native Methods**       |
 
 ## 📄 License
 
