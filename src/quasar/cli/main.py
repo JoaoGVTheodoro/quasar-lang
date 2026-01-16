@@ -17,7 +17,9 @@ from pathlib import Path
 from typing import Optional
 
 # Version info
-__version__ = "1.3.0"
+__version__ = "1.7.0"
+__codename__ = "supernova"
+
 
 # Exit codes
 EXIT_SUCCESS = 0
@@ -35,7 +37,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version", "-v",
         action="version",
-        version=f"Quasar {__version__}",
+        version=f"Quasar {__version__} {__codename__}",
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")

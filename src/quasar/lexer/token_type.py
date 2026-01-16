@@ -42,11 +42,12 @@ class TokenType(Enum):
     STRUCT = auto()     # struct
     IMPORT = auto()     # import
 
-    # === Type Keywords (4) ===
+    # === Type Keywords (5) ===
     INT = auto()        # int
     FLOAT = auto()      # float
     BOOL = auto()       # bool
     STR = auto()        # str
+    DICT = auto()       # Dict (Phase 10.0)
     
     # === Literals (4) ===
     INT_LITERAL = auto()      # e.g., 42
@@ -127,4 +128,5 @@ KEYWORDS: dict[str, TokenType] = {
     "float": TokenType.FLOAT,
     "bool": TokenType.BOOL,
     "str": TokenType.STR,
+    "Dict": TokenType.DICT,  # Phase 10.0
 }

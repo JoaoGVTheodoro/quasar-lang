@@ -194,3 +194,30 @@ class StructDecl(Declaration):
             f"fields={self.fields!r}, "
             f"span={self.span!r})"
         )
+
+
+@dataclass
+class ImportDecl(Declaration):
+    """
+    Import declaration (Phase 9).
+    
+    Examples:
+        import math
+        import "./utils.qsr"
+    
+    Attributes:
+        module: Module name or path.
+        is_local: True for local .qsr files, False for Python modules.
+        span: Source location.
+    """
+    module: str
+    is_local: bool
+    span: Span
+
+    def __repr__(self) -> str:
+        return (
+            f"ImportDecl("
+            f"module={self.module!r}, "
+            f"is_local={self.is_local!r}, "
+            f"span={self.span!r})"
+        )

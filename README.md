@@ -10,10 +10,11 @@ let h: float = math.sqrt(16.0)
 print("Result: {}", h)
 ```
 
-**Status:** v1.6.0 — Phase 9 Complete ✅ (885 tests)
+**Status:** v1.7.0 — Phase 10 Complete ✅ (941 tests)
 
 ## ✨ Features
 
+- **Dictionaries** — `Dict[K, V]` hash maps with `keys()`, `values()` (v1.7.0)
 - **Modules & Imports** — Python stdlib + local `.qsr` files (v1.6.0)
 - **User Defined Types** — Structs with dot notation
 - **Lists & Ranges** — `[int]` arrays and `for i in 0..10` loops
@@ -31,16 +32,16 @@ pip install .
 
 ```bash
 quasar --version
-# Output: Quasar 1.6.0
+# Output: Quasar 1.7.0
 ```
 
 ## 🚀 Usage
 
-| Command                     | Description                    |
-| --------------------------- | ------------------------------ |
-| `quasar run <file.qsr>`     | Compile and execute            |
-| `quasar compile <file.qsr>` | Compile to Python              |
-| `quasar check <file.qsr>`   | Validate without generating    |
+| Command                     | Description                 |
+| --------------------------- | --------------------------- |
+| `quasar run <file.qsr>`     | Compile and execute         |
+| `quasar compile <file.qsr>` | Compile to Python           |
+| `quasar check <file.qsr>`   | Validate without generating |
 
 ## 📖 Language Guide
 
@@ -56,12 +57,12 @@ let y: int = utils.helper(5)
 
 ### Primitive Types
 
-| Type    | Example              |
-| ------- | -------------------- |
-| `int`   | `42`, `-17`          |
-| `float` | `3.14`, `-0.5`       |
-| `bool`  | `true`, `false`      |
-| `str`   | `"hello"`            |
+| Type    | Example         |
+| ------- | --------------- |
+| `int`   | `42`, `-17`     |
+| `float` | `3.14`, `-0.5`  |
+| `bool`  | `true`, `false` |
+| `str`   | `"hello"`       |
 
 ### Variables & Constants
 
@@ -106,6 +107,16 @@ let p: Point = Point { x: 0, y: 0 }
 p.x = 100
 ```
 
+### Dictionaries
+
+```quasar
+let scores: Dict[str, int] = { "Alice": 100, "Bob": 90 }
+scores["Alice"] = 105
+print(len(scores))     # 2
+let k: [str] = keys(scores)
+let v: [int] = values(scores)
+```
+
 ### I/O
 
 ```quasar
@@ -117,28 +128,30 @@ let name: str = input()
 
 ```bash
 pytest tests/ -v
-# 885 tests passing
+# 941 tests passing
 ```
 
 ## 📁 Examples
 
-| File | Description |
-|------|-------------|
+| File                  | Description             |
+| --------------------- | ----------------------- |
+| `frequency.qsr`       | Dict-based vote counter |
 | `multi_file_project/` | Multi-file imports demo |
-| `rpg.qsr` | RPG system with structs |
-| `geometry.qsr` | Nested structs |
+| `rpg.qsr`             | RPG system with structs |
+| `geometry.qsr`        | Nested structs          |
 
 ## 🗺️ Version History
 
-| Version | Features |
-|---------|----------|
-| v1.0.0 | Core language |
-| v1.1.0 | Print statement |
-| v1.2.0 | Lists, ranges, for loops |
-| v1.3.0 | List builtins |
-| v1.4.0 | Input, type casting |
-| v1.5.0 | Structs |
-| **v1.6.0** | **Modules & Imports** |
+| Version                | Features                 |
+| ---------------------- | ------------------------ |
+| v1.0.0 - big bang      | Core language            |
+| v1.1.0 - void space    | Print statement          |
+| v1.2.0 - dark matter   | Lists, ranges, for loops |
+| v1.3.0 - nebula        | List builtins            |
+| v1.4.0 - galaxy        | Input, type casting      |
+| v1.5.0 - light speed   | Structs                  |
+| v1.6.0 - entropy       | Modules & Imports        |
+| **v1.7.0 - supernova** | **Dictionaries**         |
 
 ## 📄 License
 

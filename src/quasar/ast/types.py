@@ -51,8 +51,30 @@ class ListType:
         return f"ListType({self.element_type!r})"
 
 
+@dataclass(frozen=True)
+class DictType:
+    """
+    Represents a dictionary type in Quasar: Dict[K, V]
+    
+    Phase 10.0: Supports key-value mappings.
+    Key types must be hashable: int, str, bool.
+    
+    Examples:
+    - Dict[str, int]  -> DictType(STR, INT)
+    - Dict[int, [str]] -> DictType(INT, ListType(STR))
+    """
+    key_type: "QuasarType"
+    value_type: "QuasarType"
+    
+    def __str__(self) -> str:
+        return f"Dict[{self.key_type}, {self.value_type}]"
+    
+    def __repr__(self) -> str:
+        return f"DictType({self.key_type!r}, {self.value_type!r})"
+
+
 # Type alias for all Quasar types
-QuasarType = Union[PrimitiveType, ListType]
+QuasarType = Union[PrimitiveType, ListType, DictType]
 
 
 # =============================================================================
@@ -84,6 +106,18 @@ def is_primitive(t: QuasarType) -> bool:
 def is_list(t: QuasarType) -> bool:
     """Check if type is a list type."""
     return isinstance(t, ListType)
+
+
+def is_dict(t: QuasarType) -> bool:
+    """Check if type is a dict type."""
+    return isinstance(t, DictType)
+
+
+def is_hashable(t: QuasarType) -> bool:
+    """Check if type is hashable (valid as dict key)."""
+    if isinstance(t, PrimitiveType):
+        return t.name in ("int", "str", "bool", "float")
+    return False
 
 
 # =============================================================================

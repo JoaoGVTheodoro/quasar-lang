@@ -416,3 +416,55 @@ class MemberAccessExpr(Expression):
             f"member={self.member!r}, "
             f"span={self.span!r})"
         )
+
+
+@dataclass
+class DictEntry(Expression):
+    """
+    A single key-value pair in a dictionary literal (Phase 10.0).
+    
+    Examples:
+        "name": "Alice"
+        1: "one"
+    
+    Attributes:
+        key: The key expression.
+        value: The value expression.
+        span: Source location.
+    """
+    key: Expression
+    value: Expression
+    span: Span
+    
+    def __repr__(self) -> str:
+        return (
+            f"DictEntry("
+            f"key={self.key!r}, "
+            f"value={self.value!r}, "
+            f"span={self.span!r})"
+        )
+
+
+@dataclass
+class DictLiteral(Expression):
+    """
+    Dictionary literal expression (Phase 10.0).
+    
+    Examples:
+        {}
+        {"a": 1, "b": 2}
+        {1: "one", 2: "two"}
+    
+    Attributes:
+        entries: List of key-value pairs.
+        span: Source location.
+    """
+    entries: list[DictEntry]
+    span: Span
+    
+    def __repr__(self) -> str:
+        return (
+            f"DictLiteral("
+            f"entries={self.entries!r}, "
+            f"span={self.span!r})"
+        )

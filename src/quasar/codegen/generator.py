@@ -45,6 +45,8 @@ from quasar.ast import (
     FieldInit,
     StructInitExpr,
     MemberAccessExpr,
+    DictEntry,
+    DictLiteral,
     # Types and operators
     BinaryOp,
     UnaryOp,
@@ -328,6 +330,8 @@ class CodeGenerator:
             return self._generate_struct_init_expr(expr)
         elif isinstance(expr, MemberAccessExpr):
             return self._generate_member_access_expr(expr)
+        elif isinstance(expr, DictLiteral):
+            return self._generate_dict_literal(expr)
         else:
             return ""
     
@@ -356,11 +360,13 @@ class CodeGenerator:
     def _generate_call_expr(self, expr: CallExpr) -> str:
         """Generate function call.
         
-        Intercepts built-in functions (Phase 6.2, Phase 7.0, Phase 7.1):
+        Intercepts built-in functions (Phase 6.2, Phase 7.0, Phase 7.1, Phase 10.2):
         - len(x) → len(x) (Python native)
         - push(x, v) → x.append(v)
         - input() / input(prompt) → input() / input(prompt)
         - int/float/str/bool(x) → int/float/str/bool(x)
+        - keys(d) → list(d.keys())
+        - values(d) → list(d.values())
         """
         # Built-in: Type casting functions (Phase 7.1)
         if expr.callee in {"int", "float", "str", "bool"}:
@@ -386,6 +392,16 @@ class CodeGenerator:
             value_arg = self._generate_expression(expr.arguments[1])
             return f"{list_arg}.append({value_arg})"
         
+        # Built-in: keys(d) → list(d.keys()) (Phase 10.2)
+        if expr.callee == "keys":
+            dict_arg = self._generate_expression(expr.arguments[0])
+            return f"list({dict_arg}.keys())"
+        
+        # Built-in: values(d) → list(d.values()) (Phase 10.2)
+        if expr.callee == "values":
+            dict_arg = self._generate_expression(expr.arguments[0])
+            return f"list({dict_arg}.values())"
+        
         # Regular function call
         args = ", ".join(self._generate_expression(arg) for arg in expr.arguments)
         return f"{expr.callee}({args})"
@@ -394,6 +410,14 @@ class CodeGenerator:
         """Generate list literal: [a, b, c]"""
         elements = ", ".join(self._generate_expression(el) for el in expr.elements)
         return f"[{elements}]"
+    
+    def _generate_dict_literal(self, expr: DictLiteral) -> str:
+        """Generate dict literal: {k: v, ...} (Phase 10.0)"""
+        entries = ", ".join(
+            f"{self._generate_expression(entry.key)}: {self._generate_expression(entry.value)}"
+            for entry in expr.entries
+        )
+        return f"{{{entries}}}"
     
     def _generate_index_expr(self, expr: IndexExpr) -> str:
         """Generate index access: target[index] (Phase 6.1)"""

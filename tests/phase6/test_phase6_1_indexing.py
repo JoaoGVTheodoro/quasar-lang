@@ -204,14 +204,14 @@ class TestSemanticE0501:
 # =============================================================================
 
 class TestSemanticE0502:
-    """Test E0502: cannot index into non-list type."""
+    """Test E0502: cannot index into non-indexable type."""
     
     def test_error_index_int(self):
         """E0502: index into int."""
         with pytest.raises(SemanticError) as exc:
             analyze("let x: int = 42\nlet y: int = x[0]")
         assert exc.value.code == "E0502"
-        assert "non-list" in exc.value.message
+        assert "cannot index into" in exc.value.message
     
     def test_error_index_str(self):
         """E0502: index into str."""

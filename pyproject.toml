@@ -1,13 +1,11 @@
 [project]
 name = "quasar"
-version = "1.3.0"
+version = "1.6.0"
 description = "Quasar programming language - compiled to Python"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
-authors = [
-    {name = "Quasar Team"}
-]
+license = { text = "MIT" }
+authors = [{ name = "Quasar Team" }]
 keywords = ["compiler", "programming-language", "python"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -37,6 +35,4 @@ python_functions = ["test_*"]
 addopts = "-v"
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-]
+dev = ["pytest>=7.0.0"]

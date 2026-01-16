@@ -25,6 +25,22 @@ class Symbol:
     is_function: bool = False
 
 
+@dataclass
+class ModuleSymbol:
+    """
+    Represents an imported module (Phase 9).
+    
+    Module symbols have "opaque" types - member access
+    bypasses normal type checking for Python stdlib.
+    
+    Attributes:
+        name: Module name (e.g., "math").
+        is_local: True for .qsr files, False for Python modules.
+    """
+    name: str
+    is_local: bool = False
+
+
 class SymbolTable:
     """
     Hierarchical symbol table supporting nested scopes.

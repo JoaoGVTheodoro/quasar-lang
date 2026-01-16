@@ -113,6 +113,7 @@ from quasar.ast.declarations import (
     FnDecl,
     StructDecl,
     StructField,
+    ImportDecl,
 )
 from quasar.ast.program import Program
 
@@ -275,6 +276,8 @@ class Parser:
             return self._fn_decl()
         if self._check(TokenType.STRUCT):
             return self._struct_decl()
+        if self._check(TokenType.IMPORT):
+            return self._import_decl()
         return self._statement()
     
     def _var_decl(self) -> VarDecl:
@@ -923,8 +926,14 @@ class Parser:
         while True:
             if self._match(TokenType.LPAREN):
                 # Function call
-                # Must be an identifier for a function call
-                if not isinstance(expr, Identifier):
+                # Must be an identifier or member access for a function call
+                if isinstance(expr, Identifier):
+                    callee_name = expr.name
+                elif isinstance(expr, MemberAccessExpr):
+                    # For module.method() calls, generate the full dotted name
+                    # This works for math.sqrt(), etc.
+                    callee_name = self._flatten_member_access(expr)
+                else:
                     raise ParserError(
                         message="can only call functions",
                         span=expr.span,
@@ -937,7 +946,7 @@ class Parser:
                 end = self._consume(TokenType.RPAREN, "expected ')' after arguments")
                 
                 expr = CallExpr(
-                    callee=expr.name,
+                    callee=callee_name,
                     arguments=arguments,
                     span=self._merge_spans(expr.span, end.span),
                 )
@@ -964,6 +973,23 @@ class Parser:
                 break
         
         return expr
+
+    def _flatten_member_access(self, expr: MemberAccessExpr) -> str:
+        """
+        Flatten a MemberAccessExpr into a dotted name string.
+        
+        E.g., math.sqrt -> "math.sqrt"
+        """
+        if isinstance(expr.object, Identifier):
+            return f"{expr.object.name}.{expr.member}"
+        elif isinstance(expr.object, MemberAccessExpr):
+            return f"{self._flatten_member_access(expr.object)}.{expr.member}"
+        else:
+            # Shouldn't happen for module calls
+            raise ParserError(
+                message="invalid callee expression",
+                span=expr.span,
+            )
     
     def _arg_list(self) -> list[Expression]:
         """
@@ -1235,3 +1261,36 @@ class Parser:
             value=value,
             span=self._merge_spans(start, value.span),
         )
+
+    def _import_decl(self) -> ImportDecl:
+        """
+        Parse import declaration (Phase 9).
+        
+        import_decl → "import" (IDENTIFIER | STRING)
+        
+        Python modules: import math
+        Local files: import "./utils.qsr"
+        """
+        start = self._advance()  # consume 'import'
+        
+        if self._check(TokenType.IDENTIFIER):
+            # Python module import
+            name_token = self._advance()
+            return ImportDecl(
+                module=name_token.lexeme,
+                is_local=False,
+                span=self._merge_spans(start.span, name_token.span),
+            )
+        elif self._check(TokenType.STRING_LITERAL):
+            # Local file import
+            path_token = self._advance()
+            return ImportDecl(
+                module=path_token.literal,
+                is_local=True,
+                span=self._merge_spans(start.span, path_token.span),
+            )
+        else:
+            raise ParserError(
+                message="expected module name or path after 'import'",
+                span=start.span,
+            )

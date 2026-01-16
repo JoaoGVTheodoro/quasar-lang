@@ -40,6 +40,7 @@ class TokenType(Enum):
     END = auto()        # end (Phase 5.1 - print terminator)
     
     STRUCT = auto()     # struct
+    IMPORT = auto()     # import
 
     # === Type Keywords (4) ===
     INT = auto()        # int
@@ -104,6 +105,7 @@ class TokenType(Enum):
 KEYWORDS: dict[str, TokenType] = {
     # Language keywords
     "struct": TokenType.STRUCT,
+    "import": TokenType.IMPORT,
     "let": TokenType.LET,
     "const": TokenType.CONST,
     "fn": TokenType.FN,

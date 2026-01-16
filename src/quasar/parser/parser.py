@@ -69,6 +69,7 @@ from quasar.ast.types import (
     QuasarType,
     PrimitiveType,
     ListType,
+    DictType,
     INT,
     FLOAT,
     BOOL,
@@ -91,6 +92,8 @@ from quasar.ast.expressions import (
     FieldInit,
     StructInitExpr,
     MemberAccessExpr,
+    DictEntry,
+    DictLiteral,
 )
 from quasar.ast.statements import (
     Block,
@@ -403,9 +406,10 @@ class Parser:
         """
         Parse a type annotation.
         
-        type → primitive_type | list_type | struct_type
+        type → primitive_type | list_type | dict_type | struct_type
         primitive_type → "int" | "float" | "bool" | "str"
         list_type → "[" type "]"
+        dict_type → "Dict" "[" type "," type "]"
         struct_type → IDENTIFIER
         """
         # List type: [T]
@@ -413,6 +417,15 @@ class Parser:
             element_type = self._type_annotation()
             self._consume(TokenType.RBRACKET, "expected ']' after list element type")
             return ListType(element_type)
+        
+        # Dict type: Dict[K, V]
+        if self._match(TokenType.DICT):
+            self._consume(TokenType.LBRACKET, "expected '[' after 'Dict'")
+            key_type = self._type_annotation()
+            self._consume(TokenType.COMMA, "expected ',' between Dict key and value types")
+            value_type = self._type_annotation()
+            self._consume(TokenType.RBRACKET, "expected ']' after Dict value type")
+            return DictType(key_type, value_type)
         
         # Primitive types
         if self._match(TokenType.INT):
@@ -1098,6 +1111,12 @@ class Parser:
         if self._match(TokenType.LBRACKET):
             return self._list_literal()
         
+        # Dict literal (Phase 10.0): { key: value, ... }
+        # Note: This is a standalone { ... }, not StructName { ... }
+        # Struct init is handled in the IDENTIFIER case above
+        if self._match(TokenType.LBRACE):
+            return self._dict_literal()
+        
         # Error: unexpected token
         raise self._error(f"expected expression, got '{self._peek().lexeme}'")
     
@@ -1130,6 +1149,54 @@ class Parser:
         return ListLiteral(
             elements=elements,
             span=self._merge_spans(start.span, end.span),
+        )
+
+    def _dict_literal(self) -> DictLiteral:
+        """
+        Parse a dictionary literal expression (Phase 10.0).
+        
+        dict_literal → "{" (dict_entry ("," dict_entry)* ","?)? "}"
+        dict_entry   → expression ":" expression
+        
+        Called after "{" has been consumed.
+        """
+        start = self._previous()  # The "{" token
+        entries: list[DictEntry] = []
+        
+        # Check for empty dict
+        if not self._check(TokenType.RBRACE):
+            # Parse first entry
+            entries.append(self._dict_entry())
+            
+            # Parse remaining entries
+            while self._match(TokenType.COMMA):
+                # Allow trailing comma
+                if self._check(TokenType.RBRACE):
+                    break
+                entries.append(self._dict_entry())
+        
+        self._consume(TokenType.RBRACE, "expected '}' after dict entries")
+        end = self._previous()
+        
+        return DictLiteral(
+            entries=entries,
+            span=self._merge_spans(start.span, end.span),
+        )
+
+    def _dict_entry(self) -> DictEntry:
+        """
+        Parse a single dictionary entry.
+        
+        dict_entry → expression ":" expression
+        """
+        key = self._expression()
+        self._consume(TokenType.COLON, "expected ':' after dict key")
+        value = self._expression()
+        
+        return DictEntry(
+            key=key,
+            value=value,
+            span=self._merge_spans(key.span, value.span),
         )
 
     def _struct_decl(self) -> StructDecl:
